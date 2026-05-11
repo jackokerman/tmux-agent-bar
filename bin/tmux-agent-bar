@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TMUX_AGENT_BAR_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STATE_DIR="${STATE_DIR:-/tmp/tmux-agent-$(id -u)}"
+REMOTE_TRANSPORT_COMMANDS=(pty-cli)
+
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/util.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/state.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/registry.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/reconcile.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/render.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/tail.sh"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/local-collector.sh"
+
+tmux_agent_bar_load_repo_modules() {
+  tmux_agent_bar_load_dir "${TMUX_AGENT_BAR_REPO_DIR}/agents"
+  tmux_agent_bar_load_dir "${TMUX_AGENT_BAR_REPO_DIR}/sources"
+
+  # shellcheck source=/dev/null
+  source "${TMUX_AGENT_BAR_REPO_DIR}/compat/legacy-overlay.sh"
+}
+
+tmux_agent_bar_load_user_modules() {
+  tmux_agent_bar_load_dir "$(tmux_agent_bar_agents_dir)"
+  tmux_agent_bar_load_dir "$(tmux_agent_bar_sources_dir)"
+}
+
+tmux_session_status_main() {
+  local current=""
+
+  current=$(tmux_session_status_current_session)
+  tmux_agent_bar_maybe_refresh_sources
+  tmux_agent_bar_emit_registered_records "${current}" | tmux_session_status_render_records "${current}"
+  tmux_session_status_prune_orphan_state_files
+}
+
+tmux_agent_bar_load_repo_modules
+tmux_agent_bar_load_user_modules
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  tmux_session_status_main "$@"
+fi
