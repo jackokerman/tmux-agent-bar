@@ -51,6 +51,22 @@ tmux_codex_line_is_waiting() {
   return 1
 }
 
+tmux_codex_line_is_working() {
+  local line="$1"
+
+  if tmux_agent_line_is_working "${line}"; then
+    return 0
+  fi
+
+  case "${line}" in
+    *"• Waiting for background terminal"*|*"• Messages to be submitted after next tool call"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 tmux_agent_line_is_working() {
   local line="$1"
 
@@ -89,7 +105,7 @@ tmux_codex_classify_line() {
     return 0
   fi
 
-  if tmux_agent_line_is_working "${line}"; then
+  if tmux_codex_line_is_working "${line}"; then
     printf '%s\n' "working"
     return 0
   fi

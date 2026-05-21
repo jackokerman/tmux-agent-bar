@@ -47,6 +47,19 @@ EOF
 )"
 
 run_case \
+    "codex background-terminal footer stays working" \
+    "codex" \
+    "working" \
+    "$(cat <<'EOF'
+• Waiting for background terminal (5m 47s • esc to interrupt) · 1 background terminal running · /ps to view · /stop to close
+
+› Implement {feature}
+
+  gpt-5.4 xhigh · /pay/src/pay-server
+EOF
+)"
+
+run_case \
     "plan confirmation prompt stays waiting" \
     "codex" \
     "waiting" \
@@ -70,6 +83,19 @@ run_case \
 › Audit this parser
 
   gpt-5.4 xhigh · 71% left · /workspace/project
+EOF
+)"
+
+run_case \
+    "waited-for-background-terminal transcript stays neutral" \
+    "codex" \
+    "" \
+    "$(cat <<'EOF'
+• Waited for background terminal
+
+› Implement {feature}
+
+  gpt-5.4 xhigh · /pay/src/pay-server
 EOF
 )"
 
@@ -120,6 +146,20 @@ run_case \
 › Audit this parser
 
   gpt-5.4 xhigh · 78% left · ~/src/project
+EOF
+)"
+
+run_case \
+    "queued post-tool footer stays working without a separate working line" \
+    "codex" \
+    "working" \
+    "$(cat <<'EOF'
+• Messages to be submitted after next tool call (press esc to interrupt and send immediately)
+  ↳ I might need to restart some services if you are not seeing the actual dashboard page.
+
+› Run /review on my current changes
+
+  gpt-5.4 xhigh · /pay/src/pay-server/frontend/dashboard-object-creation
 EOF
 )"
 

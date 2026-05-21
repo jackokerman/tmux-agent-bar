@@ -11,11 +11,13 @@ source "${PROJECT_ROOT}/tests/testlib.sh"
 
 run_case() {
   local name="$1" expected="$2" local_rows="$3" overlay_body="$4" require_marker="${5:-0}"
-  local tmp_dir="" overlay_script="" marker_file="" actual=""
+  local tmp_dir="" overlay_script="" marker_file="" actual="" config_dir=""
 
   tmp_dir=$(mktemp -d)
   overlay_script="${tmp_dir}/overlay.sh"
   marker_file="${tmp_dir}/refresh-marker"
+  config_dir="${tmp_dir}/config"
+  mkdir -p "${config_dir}"
 
   if [[ -n "${overlay_body}" ]]; then
     printf '%s\n' "${overlay_body}" > "${overlay_script}"
@@ -28,6 +30,7 @@ run_case() {
     LOCAL_ROWS="${local_rows}" \
     OVERLAY_MARKER="${marker_file}" \
     TMUX_SESSION_STATUS_OVERLAY_SCRIPT="${overlay_script}" \
+    XDG_CONFIG_HOME="${config_dir}" \
     TARGET_SCRIPT="${TARGET_SCRIPT}" \
     "${BASH}" <<'EOF'
 set -euo pipefail
