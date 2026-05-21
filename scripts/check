@@ -20,6 +20,7 @@ run_bash_syntax() {
     "sources/local.sh"
     "compat/legacy-overlay.sh"
     "tests/test-pane-state.sh"
+    "tests/test-current-state.sh"
     "tests/test-session-status-local.sh"
     "tests/test-session-status.sh"
     "tests/test-overlay-contract.sh"
@@ -32,6 +33,7 @@ run_bash_syntax() {
 
 run_tests() {
   "${PROJECT_ROOT}/tests/test-pane-state.sh"
+  "${PROJECT_ROOT}/tests/test-current-state.sh"
   "${PROJECT_ROOT}/tests/test-session-status-local.sh"
   "${PROJECT_ROOT}/tests/test-session-status.sh"
   "${PROJECT_ROOT}/tests/test-overlay-contract.sh"

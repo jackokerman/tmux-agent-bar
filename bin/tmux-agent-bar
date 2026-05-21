@@ -42,9 +42,43 @@ tmux_session_status_main() {
   tmux_session_status_prune_orphan_state_files
 }
 
+tmux_session_status_current_record() {
+  local current="" session="" agent="" state="" source="" updated_at=""
+
+  current=$(tmux_session_status_current_session)
+  [[ -n "${current}" ]] || return 0
+
+  tmux_agent_bar_maybe_refresh_sources
+
+  while IFS=$'\t' read -r session agent state source updated_at || [[ -n "${session:-}${agent:-}${state:-}${source:-}${updated_at:-}" ]]; do
+    [[ -n "${session}" ]] || continue
+    [[ "${session}" == "${current}" ]] || continue
+    [[ -n "${state}" ]] || continue
+
+    printf '%s\t%s\t%s\t%s\t%s\n' "${session}" "${agent}" "${state}" "${source}" "${updated_at}"
+    return 0
+  done < <(tmux_agent_bar_emit_registered_records "")
+}
+
+tmux_session_status_current_state() {
+  local session="" agent="" state="" source="" updated_at=""
+
+  if IFS=$'\t' read -r session agent state source updated_at < <(tmux_session_status_current_record); then
+    [[ -n "${state:-}" ]] || return 0
+    printf '%s\n' "${state}"
+  fi
+}
+
 tmux_agent_bar_load_repo_modules
 tmux_agent_bar_load_user_modules
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  tmux_session_status_main "$@"
+  case "${1:-}" in
+    current-state)
+      tmux_session_status_current_state
+      ;;
+    *)
+      tmux_session_status_main "$@"
+      ;;
+  esac
 fi
