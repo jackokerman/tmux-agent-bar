@@ -150,6 +150,36 @@ EOF
 )"
 
 run_case \
+    "live post-tool-use hook stays working" \
+    "codex" \
+    "working" \
+    "$(cat <<'EOF'
+• Running PostToolUse hook
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 xhigh · ~/stripe
+EOF
+)"
+
+run_case \
+    "completed post-tool-use hook transcript stays neutral" \
+    "codex" \
+    "" \
+    "$(cat <<'EOF'
+• Running PostToolUse hook
+
+PostToolUse hook (completed)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 xhigh · ~/stripe
+EOF
+)"
+
+run_case \
     "queued post-tool footer stays working without a separate working line" \
     "codex" \
     "working" \

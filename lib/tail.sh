@@ -51,10 +51,28 @@ tmux_codex_line_is_waiting() {
   return 1
 }
 
+tmux_codex_running_hook_name() {
+  local line="$1"
+
+  [[ "${line}" =~ ^[[:space:]]*•[[:space:]]Running[[:space:]](.+)[[:space:]]hook$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+tmux_codex_completed_hook_name() {
+  local line="$1"
+
+  [[ "${line}" =~ ^[[:space:]]*(.+)[[:space:]]hook[[:space:]]\(completed\)$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
 tmux_codex_line_is_working() {
   local line="$1"
 
   if tmux_agent_line_is_working "${line}"; then
+    return 0
+  fi
+
+  if tmux_codex_running_hook_name "${line}" >/dev/null 2>&1; then
     return 0
   fi
 
@@ -113,6 +131,33 @@ tmux_codex_classify_line() {
   printf '%s\n' ""
 }
 
+tmux_codex_infer_state_from_tail() {
+  local tail="$1" line="" state="" hook="" completed_hooks=""
+
+  while IFS= read -r line; do
+    hook=$(tmux_codex_completed_hook_name "${line}" 2>/dev/null || true)
+    if [[ -n "${hook}" ]]; then
+      completed_hooks+=$'\n'"${hook}"
+      continue
+    fi
+
+    state=$(tmux_codex_classify_line "${line}")
+    [[ -n "${state}" ]] || continue
+
+    if [[ "${state}" == "working" ]]; then
+      hook=$(tmux_codex_running_hook_name "${line}" 2>/dev/null || true)
+      if [[ -n "${hook}" ]] && printf '%s\n' "${completed_hooks}" | grep -Fqx "${hook}"; then
+        continue
+      fi
+    fi
+
+    printf '%s\n' "${state}"
+    return 0
+  done < <(printf '%s\n' "${tail}" | tmux_agent_reverse_lines)
+
+  printf '%s\n' ""
+}
+
 tmux_agent_infer_state_from_tail_with_classifier() {
   local tail="$1" classifier="$2" line="" state=""
 
@@ -151,7 +196,13 @@ tmux_agent_state_is_stale_working() {
 }
 
 tmux_agent_infer_state_from_tail() {
-  local agent="$1" tail="$2" classifier=""
+  local agent="$1" tail="$2" classifier="" custom_infer=""
+
+  custom_infer="tmux_${agent}_infer_state_from_tail"
+  if declare -F "${custom_infer}" >/dev/null 2>&1; then
+    "${custom_infer}" "${tail}"
+    return 0
+  fi
 
   classifier=$(tmux_agent_bar_classifier_for_agent "${agent}" 2>/dev/null || true)
   [[ -n "${classifier}" ]] || {

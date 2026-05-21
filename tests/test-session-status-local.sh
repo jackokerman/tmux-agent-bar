@@ -79,6 +79,52 @@ run_shell_wrapped_explicit_done_case() {
 run_shell_wrapped_explicit_done_case \
     "shell-wrapped explicit done session recovers to working from the live pane"
 
+run_shell_wrapped_hook_recovery_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 0
+    }
+
+    _session_agent_command() {
+      printf '%s\n' "codex"
+    }
+
+    tmux_agent_capture_tail() {
+      cat <<'EOF'
+• Running PostToolUse hook
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 xhigh · ~/stripe
+EOF
+    }
+
+    _state_file_mtime() {
+      printf '%s\n' "42"
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'review-shell\tcodex\tworking\tlocal_explicit\t42' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_hook_recovery_case \
+    "shell-wrapped explicit done session recovers to working from a live hook footer"
+
 run_shell_wrapped_fallback_case() {
   local name="$1"
 
