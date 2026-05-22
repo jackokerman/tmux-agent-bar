@@ -1,15 +1,52 @@
 #!/usr/bin/env bash
 
-_session_has_pane_command() {
-  local session="$1" cmd wanted
+TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY=0
+TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT=""
+TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT=""
+TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=""
+TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
 
-  while IFS= read -r cmd; do
+tmux_agent_bar_local_prepare_snapshots() {
+  TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY=1
+  TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT=$(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
+  TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT=$(tmux list-panes -a -F '#{session_name}'$'\t''#{pane_pid}'$'\t''#{pane_current_command}' 2>/dev/null || true)
+  TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+  TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
+
+  local shadowed_sessions_file=""
+
+  shadowed_sessions_file=$(tmux_agent_bar_shadowed_sessions_file)
+  if [[ -f "${shadowed_sessions_file}" ]]; then
+    TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=$(<"${shadowed_sessions_file}")
+  fi
+}
+
+_session_pane_rows() {
+  local session="$1" pane_session="" pane_pid="" pane_command=""
+
+  if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" != "1" ]]; then
+    tmux list-panes -t "${session}" -F '#{session_name}'$'\t''#{pane_pid}'$'\t''#{pane_current_command}' 2>/dev/null || true
+    return 0
+  fi
+
+  while IFS=$'\t' read -r pane_session pane_pid pane_command || [[ -n "${pane_session:-}${pane_pid:-}${pane_command:-}" ]]; do
+    [[ -n "${pane_session}" ]] || continue
+    [[ "${pane_session}" == "${session}" ]] || continue
+    printf '%s\t%s\t%s\n' "${pane_session}" "${pane_pid}" "${pane_command}"
+  done <<< "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}"
+}
+
+_session_has_pane_command() {
+  local session="$1" pane_session="" _pane_pid="" cmd="" wanted=""
+
+  while IFS=$'\t' read -r pane_session _pane_pid cmd || [[ -n "${pane_session:-}${_pane_pid:-}${cmd:-}" ]]; do
+    [[ -n "${pane_session}" ]] || continue
     for wanted in "${@:2}"; do
       if [[ "${cmd}" == "${wanted}" ]]; then
         return 0
       fi
     done
-  done < <(tmux list-panes -t "${session}" -F '#{pane_current_command}' 2>/dev/null)
+  done < <(_session_pane_rows "${session}")
 
   return 1
 }
@@ -18,50 +55,122 @@ _session_has_known_agent_pane() {
   [[ -n "$(_session_agent_command "$1" 2>/dev/null || true)" ]]
 }
 
-_session_has_remote_transport_pane() {
-  _session_has_pane_command "$1" "${REMOTE_TRANSPORT_COMMANDS[@]}"
+_session_is_shadowed() {
+  local session="$1" line="" shadowed_sessions=""
+
+  if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
+    shadowed_sessions="${TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT}"
+  else
+    local shadowed_sessions_file=""
+
+    shadowed_sessions_file=$(tmux_agent_bar_shadowed_sessions_file)
+    if [[ -f "${shadowed_sessions_file}" ]]; then
+      shadowed_sessions=$(<"${shadowed_sessions_file}")
+    fi
+  fi
+
+  while IFS= read -r line || [[ -n "${line:-}" ]]; do
+    [[ -n "${line}" ]] || continue
+    [[ "${line}" == \#* ]] && continue
+    [[ "${line}" == "${session}" ]] && return 0
+  done <<< "${shadowed_sessions}"
+
+  return 1
 }
 
 _session_live_agent_command() {
-  local session="$1" agent="${2:-}" pane_pids="" line="" pid="" comm="" current_pid="" parent_pid=""
-  local target_command=""
-  local -a target_agents=()
+  local session="$1" agent="${2:-}" pane_rows="" pane_pids="" ps_snapshot="" target_command=""
+  local target_agents="" live_agent_command="" pane_session="" pane_pid="" pane_command="" known_command=""
 
-  pane_pids=$(tmux list-panes -t "${session}" -F '#{pane_pid}' 2>/dev/null || true)
+  pane_rows=$(_session_pane_rows "${session}")
+  while IFS=$'\t' read -r pane_session pane_pid pane_command || [[ -n "${pane_session:-}${pane_pid:-}${pane_command:-}" ]]; do
+    [[ "${pane_pid}" =~ ^[0-9]+$ ]] || continue
+    if [[ -n "${pane_pids}" ]]; then
+      pane_pids+=","
+    fi
+    pane_pids+="${pane_pid}"
+  done <<< "${pane_rows}"
   [[ -n "${pane_pids//[[:space:]]/}" ]] || return 1
 
   target_command=$(tmux_agent_bar_command_for_agent "${agent}" 2>/dev/null || true)
   if [[ -n "${target_command}" ]]; then
-    target_agents=("${target_command}")
+    target_agents="${target_command}"
   else
-    target_agents=("${KNOWN_AGENT_COMMANDS[@]}")
-  fi
-
-  while IFS= read -r line; do
-    [[ -n "${line}" ]] || continue
-    read -r pid _ppid comm <<< "${line}"
-    [[ "${pid}" =~ ^[0-9]+$ ]] || continue
-
-    case " ${target_agents[*]} " in
-      *" ${comm} "*) ;;
-      *) continue ;;
-    esac
-
-    current_pid="${pid}"
-    while [[ -n "${current_pid}" && "${current_pid}" != "1" ]]; do
-      if printf '%s\n' "${pane_pids}" | grep -qx "${current_pid}"; then
-        printf '%s\n' "${comm}"
-        return 0
+    for known_command in "${KNOWN_AGENT_COMMANDS[@]}"; do
+      [[ -n "${known_command}" ]] || continue
+      if [[ -n "${target_agents}" ]]; then
+        target_agents+=","
       fi
-
-      parent_pid=$(ps -o ppid= -p "${current_pid}" 2>/dev/null | tr -d '[:space:]')
-      [[ "${parent_pid}" =~ ^[0-9]+$ ]] || break
-      [[ "${parent_pid}" != "${current_pid}" ]] || break
-      current_pid="${parent_pid}"
+      target_agents+="${known_command}"
     done
-  done < <(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+  fi
+  [[ -n "${target_agents//[[:space:]]/}" ]] || return 1
 
-  return 1
+  if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
+    ps_snapshot="${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}"
+  else
+    ps_snapshot=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+  fi
+  [[ -n "${ps_snapshot//[[:space:]]/}" ]] || return 1
+
+  live_agent_command=$(
+    awk -v pane_pids="${pane_pids}" -v target_agents="${target_agents}" '
+    BEGIN {
+      pane_count = split(pane_pids, panes, ",")
+      for (i = 1; i <= pane_count; i++) {
+        if (panes[i] != "") {
+          pane[panes[i]] = 1
+        }
+      }
+
+      agent_count = split(target_agents, agents, ",")
+      for (i = 1; i <= agent_count; i++) {
+        if (agents[i] != "") {
+          wanted[agents[i]] = 1
+        }
+      }
+    }
+
+    {
+      pid = $1
+      ppid = $2
+      comm = $3
+
+      if (pid !~ /^[0-9]+$/) {
+        next
+      }
+
+      parent[pid] = ppid
+      if (wanted[comm]) {
+        candidate_count += 1
+        candidate_pid[candidate_count] = pid
+        candidate_command[candidate_count] = comm
+      }
+    }
+
+    END {
+      for (i = 1; i <= candidate_count; i++) {
+        current = candidate_pid[i]
+        depth = 0
+
+        while (current != "" && current != "1" && depth < 256) {
+          depth += 1
+          if (pane[current]) {
+            print candidate_command[i]
+            exit
+          }
+          if (parent[current] == current) {
+            break
+          }
+          current = parent[current]
+        }
+      }
+    }
+  ' <<< "${ps_snapshot}"
+  )
+  [[ -n "${live_agent_command}" ]] || return 1
+
+  printf '%s\n' "${live_agent_command}"
 }
 
 _session_has_live_agent_process() {
@@ -69,16 +178,17 @@ _session_has_live_agent_process() {
 }
 
 _session_agent_command() {
-  local session="$1" cmd known_cmd
+  local session="$1" pane_session="" _pane_pid="" cmd="" known_cmd=""
 
-  while IFS= read -r cmd; do
+  while IFS=$'\t' read -r pane_session _pane_pid cmd || [[ -n "${pane_session:-}${_pane_pid:-}${cmd:-}" ]]; do
+    [[ -n "${pane_session}" ]] || continue
     for known_cmd in "${KNOWN_AGENT_COMMANDS[@]}"; do
       if [[ "${cmd}" == "${known_cmd}" ]]; then
         printf '%s\n' "${known_cmd}"
         return 0
       fi
     done
-  done < <(tmux list-panes -t "${session}" -F '#{pane_current_command}' 2>/dev/null)
+  done < <(_session_pane_rows "${session}")
 
   _session_live_agent_command "${session}" 2>/dev/null || return 1
 }
@@ -98,25 +208,14 @@ _session_live_state() {
 _state_file_has_stale_working() {
   local state_file="$1"
 
-  if declare -F tmux_agent_state_is_stale_working >/dev/null 2>&1; then
-    tmux_agent_state_is_stale_working "${state_file}"
-    return $?
-  fi
-
-  return 1
+  tmux_agent_state_is_stale_working "${state_file}"
 }
 
 _state_file_mtime() {
   local state_file="$1" updated_at=""
 
-  if declare -F tmux_agent_state_file_mtime >/dev/null 2>&1; then
-    updated_at=$(tmux_agent_state_file_mtime "${state_file}" 2>/dev/null || true)
-  fi
-
-  if [[ ! "${updated_at}" =~ ^[0-9]+$ ]]; then
-    updated_at=0
-  fi
-
+  updated_at=$(tmux_agent_state_file_mtime "${state_file}" 2>/dev/null || true)
+  [[ "${updated_at}" =~ ^[0-9]+$ ]] || updated_at=0
   printf '%s\n' "${updated_at}"
 }
 
@@ -127,78 +226,14 @@ _touch_state_file() {
   touch "${state_file}" 2>/dev/null
 }
 
-tmux_session_status_resolve_state() {
-  local explicit_state="$1" live_state="$2" has_known_agent_pane="${3:-0}" stale_working="${4:-0}" agent_mismatch="${5:-0}"
-  local state="${explicit_state}"
-
-  if [[ -n "${state}" ]]; then
-    if [[ "${has_known_agent_pane}" == "1" ]]; then
-      if [[ "${agent_mismatch}" == "1" ]]; then
-        state="done"
-      fi
-
-      # Explicit hook state remains authoritative for active sessions, except
-      # when the pane clearly shows the agent is still running or blocked on a
-      # prompt. This rescues stale explicit done files that can linger across
-      # longer Codex turns.
-      if [[ "${live_state}" == "waiting" ]]; then
-        state="waiting"
-      elif [[ "${state}" == "done" && "${live_state}" == "working" ]]; then
-        state="working"
-      elif [[ "${state}" == "working" && "${stale_working}" == "1" ]]; then
-        state="done"
-      fi
-    elif [[ "${state}" == "working" && "${stale_working}" == "1" ]]; then
-      state="done"
-    fi
-
-    printf '%s\n' "${state}"
-    return 0
-  fi
-
-  if [[ "${has_known_agent_pane}" != "1" ]]; then
-    printf '%s\n' ""
-    return 0
-  fi
-
-  if [[ -n "${live_state}" ]]; then
-    printf '%s\n' "${live_state}"
-  else
-    # Keep open agent sessions visible even when the live tail has no active
-    # working/waiting marker. They should only disappear once the agent process
-    # itself is gone.
-    printf '%s\n' "done"
-  fi
-}
-
-tmux_session_status_current_session() {
-  local target="${1:-}"
-
-  if [[ -n "${target}" ]]; then
-    tmux display-message -p -t "${target}" '#{session_name}' 2>/dev/null || printf '%s\n' "${target}"
-    return 0
-  fi
-
-  tmux display-message -p '#{session_name}' 2>/dev/null || true
-}
-
-tmux_session_status_emit_record() {
-  local session_label="$1" agent="$2" state="$3" source="$4" updated_at="$5"
-
-  [[ -n "${session_label}" ]] || return 0
-  [[ -n "${state}" ]] || return 0
-
-  printf '%s\t%s\t%s\t%s\t%s\n' "${session_label}" "${agent}" "${state}" "${source}" "${updated_at}"
-}
-
 tmux_session_status_emit_local_record() {
-  local session="$1" current="$2" safe="" state="" active_agent="" agent="" live_state=""
+  local session="$1" current="$2" state="" active_agent="" agent="" live_state=""
   local has_known_agent_pane=0 stale_working=0 agent_mismatch=0 state_file="" updated_at=0 source=""
 
   [[ "${session}" != "${current}" ]] || return 0
+  _session_is_shadowed "${session}" && return 0
 
-  safe="${session//\//%2F}"
-  state_file="${STATE_DIR}/${safe}"
+  state_file=$(tmux_agent_bar_state_file_path "${session}")
 
   if [[ -f "${state_file}" ]]; then
     IFS=$'\t' read -r agent state < <(_read_state_record "${state_file}")
@@ -232,8 +267,6 @@ tmux_session_status_emit_local_record() {
     updated_at=$(_state_file_mtime "${state_file}")
     source="local_explicit"
     agent="${active_agent:-${agent}}"
-  elif _session_has_remote_transport_pane "${session}"; then
-    return 0
   elif ! _session_has_known_agent_pane "${session}"; then
     return 0
   else
@@ -252,10 +285,12 @@ tmux_session_status_emit_local_record() {
 tmux_session_status_local_emit_records() {
   local current="$1" session=""
 
+  tmux_agent_bar_local_prepare_snapshots
+
   while IFS= read -r session; do
     [[ -n "${session}" ]] || continue
     tmux_session_status_emit_local_record "${session}" "${current}"
-  done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
+  done <<< "${TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT}"
 }
 
 tmux_agent_bar_local_emit_records() {

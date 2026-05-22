@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-tmux_agent_bar_hook_main() {
-  local session="" state="${1:-}" agent="${2:-claude}" safe=""
+TMUX_AGENT_BAR_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-  STATE_DIR="/tmp/tmux-agent-$(id -u)"
-  mkdir -p "${STATE_DIR}"
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/state.sh"
+
+tmux_agent_bar_hook_main() {
+  local session="" state="${1:-}" agent="${2:-claude}" state_dir="" state_file=""
+
+  state_dir=$(tmux_agent_bar_state_dir)
+  mkdir -p "${state_dir}"
 
   # Resolve the real session name from the current pane when possible. `$TMUX`
   # contains the socket path plus pane token, not the session name itself.
@@ -18,11 +23,14 @@ tmux_agent_bar_hook_main() {
   [[ -n "${state}" ]] || return 0
   [[ -n "${agent}" ]] || return 0
 
-  safe=$(printf '%s\n' "${session//\//%2F}")
-  printf '%s\t%s\n' "${agent}" "${state}" > "${STATE_DIR}/${safe}"
+  state_file=$(tmux_agent_bar_state_file_path "${session}")
+  printf '%s\t%s\n' "${agent}" "${state}" > "${state_file}"
 
   if [[ "${state}" == "done" || "${state}" == "waiting" ]]; then
-    printf '\a' >/dev/tty 2>/dev/null || printf '\a'
+    if { exec 9>/dev/tty; } 2>/dev/null; then
+      printf '\a' >&9 2>/dev/null || true
+      exec 9>&-
+    fi
   fi
 }
 

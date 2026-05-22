@@ -29,6 +29,18 @@ run_agent_registration_case() {
 run_source_registration_case() {
   local actual=""
 
+  tmux_session_status_local_emit_records() {
+    :
+  }
+
+  tmux_agent_bar_remote_cache_emit_records() {
+    :
+  }
+
+  tmux_agent_bar_legacy_overlay_emit() {
+    :
+  }
+
   custom_emit() {
     printf '%s\n' $'alpha\tcustom\tworking\tcustom_source\t10'
   }

@@ -4,6 +4,24 @@ tmux_agent_bar_state_dir() {
   printf '%s\n' "${STATE_DIR:-/tmp/tmux-agent-$(id -u)}"
 }
 
+tmux_agent_bar_state_file_path() {
+  local session="$1"
+
+  printf '%s/%s\n' "$(tmux_agent_bar_state_dir)" "$(tmux_agent_bar_safe_name "${session}")"
+}
+
+tmux_agent_bar_cache_dir() {
+  printf '%s\n' "${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar"
+}
+
+tmux_agent_bar_remote_rows_file() {
+  printf '%s/remote-rows.tsv\n' "$(tmux_agent_bar_cache_dir)"
+}
+
+tmux_agent_bar_shadowed_sessions_file() {
+  printf '%s/shadowed-sessions.txt\n' "$(tmux_agent_bar_cache_dir)"
+}
+
 tmux_agent_bar_safe_name() {
   local name="$1"
 

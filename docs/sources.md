@@ -8,4 +8,17 @@ tmux_agent_register_source "local" "tmux_agent_bar_local_emit_records"
 
 Optional refresh hooks can do slow work such as remote probes and local cache updates.
 
-Remote or environment-specific source logic is intentionally left to user modules and overlays, so the checked-in repo stays generic.
+The checked-in repo ships two generic sources:
+
+- `local`, which inspects tmux sessions on the current host
+- `remote-cache`, which reads `${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/remote-rows.tsv`
+
+`remote-rows.tsv` must contain normalized five-column rows:
+
+```text
+session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
+```
+
+If a remote row should replace a local row for the same tmux session, add that session label to `${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt`.
+
+Remote transport, polling, and cache population are still intentionally left to user modules, overlays, or external scripts so the checked-in runtime stays generic.

@@ -2,8 +2,6 @@
 set -euo pipefail
 
 TMUX_AGENT_BAR_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-STATE_DIR="${STATE_DIR:-/tmp/tmux-agent-$(id -u)}"
-REMOTE_TRANSPORT_COMMANDS=(pty-cli)
 
 # shellcheck source=/dev/null
 source "${TMUX_AGENT_BAR_REPO_DIR}/lib/util.sh"

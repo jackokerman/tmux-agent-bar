@@ -23,11 +23,11 @@ tmux_agent_reverse_lines() {
   awk '{ lines[NR] = $0 } END { for (i = NR; i >= 1; i--) print lines[i] }'
 }
 
-tmux_agent_line_is_waiting() {
+tmux_agent_line_is_question_waiting() {
   local line="$1"
 
   case "${line}" in
-    *"Do you want me to "*|*"Would you like to run the following command?"*|*"Press enter to confirm or esc to cancel"*|*"Press enter to confirm or esc to go back"*|*"permission prompt"*|*"tab to add notes"*|*"enter to submit answer"*|*"Implement this plan?"*|*"Yes, implement this plan"*|*"No, stay in Plan mode"*)
+    *"tab to add notes"*|*"enter to submit answer"*|*"←/→ to navigate questions"*)
       return 0
       ;;
   esac
@@ -35,20 +35,40 @@ tmux_agent_line_is_waiting() {
   [[ "${line}" == *"Question "* && "${line}" == *"unanswered"* ]]
 }
 
-tmux_codex_line_is_waiting() {
+tmux_agent_line_is_plan_waiting() {
   local line="$1"
 
-  if tmux_agent_line_is_waiting "${line}"; then
-    return 0
-  fi
-
   case "${line}" in
-    *"←/→ to navigate questions"*)
+    *"Implement this plan?"*|*"Yes, implement this plan"*|*"No, stay in Plan mode"*|*"Press enter to confirm or esc to go back"*)
       return 0
       ;;
   esac
 
   return 1
+}
+
+tmux_agent_line_is_approval_waiting() {
+  local line="$1"
+
+  case "${line}" in
+    *"Do you want me to "*|*"Would you like to run the following command?"*|*"Press enter to confirm or esc to cancel"*|*"permission prompt"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+tmux_agent_line_is_waiting() {
+  local line="$1"
+
+  tmux_agent_line_is_question_waiting "${line}" ||
+    tmux_agent_line_is_plan_waiting "${line}" ||
+    tmux_agent_line_is_approval_waiting "${line}"
+}
+
+tmux_codex_line_is_waiting() {
+  tmux_agent_line_is_waiting "$1"
 }
 
 tmux_codex_running_hook_name() {
@@ -170,29 +190,6 @@ tmux_agent_infer_state_from_tail_with_classifier() {
   done < <(printf '%s\n' "${tail}" | tmux_agent_reverse_lines)
 
   printf '%s\n' ""
-}
-
-tmux_agent_state_file_mtime() {
-  local state_file="$1"
-
-  if stat -f '%m' "${state_file}" >/dev/null 2>&1; then
-    stat -f '%m' "${state_file}"
-    return 0
-  fi
-
-  stat -c '%Y' "${state_file}"
-}
-
-tmux_agent_state_is_stale_working() {
-  local state_file="$1" ttl="${2:-${TMUX_AGENT_WORKING_TTL:-20}}" mtime="" now=""
-
-  [[ -f "${state_file}" ]] || return 1
-
-  mtime=$(tmux_agent_state_file_mtime "${state_file}" 2>/dev/null || true)
-  [[ "${mtime}" =~ ^[0-9]+$ ]] || return 1
-
-  now=$(date +%s)
-  (( now - mtime > ttl ))
 }
 
 tmux_agent_infer_state_from_tail() {

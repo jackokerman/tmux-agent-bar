@@ -226,3 +226,113 @@ run_working_heartbeat_case() {
 
 run_working_heartbeat_case \
     "live working refreshes the explicit state heartbeat"
+
+run_shadowed_session_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" state_dir="" cache_dir="" shadow_file="" actual=""
+
+    tmp_dir=$(mktemp -d)
+    state_dir="${tmp_dir}/state"
+    cache_dir="${tmp_dir}/cache"
+    shadow_file="${cache_dir}/tmux-agent-bar/shadowed-sessions.txt"
+    mkdir -p "${state_dir}" "$(dirname "${shadow_file}")"
+
+    STATE_DIR="${state_dir}"
+    XDG_CACHE_HOME="${cache_dir}"
+    printf 'codex\tworking\n' > "$(tmux_agent_bar_state_file_path "shadowed")"
+    printf 'shadowed\n' > "${shadow_file}"
+
+    actual=$(tmux_session_status_emit_local_record "shadowed" "current")
+    assert_equal "${name}" "" "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shadowed_session_case \
+    "shadowed sessions are suppressed before local rendering"
+
+run_snapshot_collection_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" actual="" list_sessions_calls="" list_panes_all_calls="" list_panes_target_calls="" ps_calls=""
+
+    tmp_dir=$(mktemp -d)
+    mkdir -p "${tmp_dir}/bin"
+
+    cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "${TMUX_LOG}"
+
+if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
+  printf '%s\n' "current"
+  printf '%s\n' "direct-agent"
+  printf '%s\n' "wrapped-agent"
+  exit 0
+fi
+
+if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
+  printf '%s\t%s\t%s\n' "current" "100" "zsh"
+  printf '%s\t%s\t%s\n' "direct-agent" "200" "codex"
+  printf '%s\t%s\t%s\n' "wrapped-agent" "300" "bash"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/tmux"
+
+    cat > "${tmp_dir}/bin/ps" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "${PS_LOG}"
+
+if [[ "${1:-}" == "-eo" && "${2:-}" == "pid=,ppid=,comm=" ]]; then
+  printf '%s\n' "200 1 codex"
+  printf '%s\n' "300 1 bash"
+  printf '%s\n' "301 300 codex"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/ps"
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    actual=$(
+      PATH="${tmp_dir}/bin:${PATH}" \
+      TMUX_LOG="${tmp_dir}/tmux.log" \
+      PS_LOG="${tmp_dir}/ps.log" \
+      tmux_session_status_local_emit_records "current"
+    )
+
+    assert_equal \
+      "${name}" \
+      $'direct-agent\tcodex\tdone\tlocal_fallback\t0\nwrapped-agent\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
+
+    list_sessions_calls=$(grep -c '^list-sessions -F ' "${tmp_dir}/tmux.log" || true)
+    list_panes_all_calls=$(grep -c '^list-panes -a ' "${tmp_dir}/tmux.log" || true)
+    list_panes_target_calls=$(grep -c '^list-panes -t ' "${tmp_dir}/tmux.log" || true)
+    ps_calls=$(wc -l < "${tmp_dir}/ps.log" | tr -d '[:space:]')
+
+    assert_equal "${name} uses a single list-sessions snapshot" "1" "${list_sessions_calls}"
+    assert_equal "${name} uses a single list-panes snapshot" "1" "${list_panes_all_calls}"
+    assert_equal "${name} avoids per-session list-panes calls" "0" "${list_panes_target_calls}"
+    assert_equal "${name} uses a single ps snapshot" "1" "${ps_calls}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_snapshot_collection_case \
+    "local collector reuses shared snapshots and still finds shell-wrapped agents"
