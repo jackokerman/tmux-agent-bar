@@ -1,7 +1,19 @@
 # Install
 
-This repo is designed to be consumed as a managed runtime checkout.
+This repo is install-agnostic. Clone it, vendor it, or manage it with whatever tool you want. The runtime only needs tmux to be able to execute the scripts in `bin/`.
 
-- `dotfiles` clones or updates the repo into `~/.local/share/tmux-agent-bar/repo`
-- tmux wrappers call the repo entrypoints from that stable path
-- optional user modules load from `~/.config/tmux-agent-bar/`
+For example, with `git`:
+
+```bash
+git clone https://github.com/jackokerman/tmux-agent-bar.git ~/src/tmux-agent-bar
+```
+
+Then point `tmux` at the renderer entrypoint from whatever checkout path you chose:
+
+```tmux
+set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar)"
+```
+
+If you want to call `tmux-agent-bar-hook` by name instead of by absolute path, expose the repo `bin/` directory however you prefer, such as adding it to your `PATH` or symlinking the scripts into `~/.local/bin`.
+
+Optional user modules still load from `~/.config/tmux-agent-bar/`.

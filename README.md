@@ -11,27 +11,29 @@ Status-line-first tmux agent status tracking for local and remote coding session
 
 ## Install
 
-The intended install path in this setup is a dotty-managed checkout under:
+This repo is installation-agnostic. Clone it, vendor it, or manage it however you want. The runtime only assumes tmux can execute these entrypoints from your checkout:
 
-```bash
-~/.local/share/tmux-agent-bar/repo
+```text
+/path/to/tmux-agent-bar/bin/tmux-agent-bar
+/path/to/tmux-agent-bar/bin/tmux-agent-bar-hook
 ```
 
-The runtime entrypoints are:
+A minimal tmux integration looks like:
 
-```bash
-bin/tmux-agent-bar
-bin/tmux-agent-bar-hook
+```tmux
+set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar)"
 ```
+
+If you want shorter shell commands, add the repo `bin/` directory to your `PATH` or symlink the two scripts wherever you prefer.
 
 ## Agent hooks
 
 Write explicit state for the current tmux session:
 
 ```bash
-tmux-agent-bar-hook working codex
-tmux-agent-bar-hook waiting codex
-tmux-agent-bar-hook done codex
+/path/to/tmux-agent-bar/bin/tmux-agent-bar-hook working codex
+/path/to/tmux-agent-bar/bin/tmux-agent-bar-hook waiting codex
+/path/to/tmux-agent-bar/bin/tmux-agent-bar-hook done codex
 ```
 
 The state file format is:
