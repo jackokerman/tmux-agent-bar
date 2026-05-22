@@ -116,3 +116,95 @@ EOF
 }
 
 run_target_resolution_case
+
+run_cached_state_case() {
+  local tmp_dir="" marker="" actual=""
+
+  tmp_dir=$(mktemp -d)
+  marker="${tmp_dir}/refresh-called"
+
+  actual=$(
+    CURRENT_SESSION="current" \
+    ROWS=$'other\tcodex\tdone\tlocal_explicit\t10\ncurrent\tcodex\tworking\tlocal_explicit\t20\n' \
+    REFRESH_MARKER="${marker}" \
+    TARGET_SCRIPT="${TARGET_SCRIPT}" \
+    "${BASH}" <<'EOF'
+set -euo pipefail
+
+source "${TARGET_SCRIPT}"
+
+tmux_session_status_current_session() {
+  printf '%s\n' "${CURRENT_SESSION}"
+}
+
+tmux_agent_bar_maybe_refresh_sources() {
+  : > "${REFRESH_MARKER}"
+}
+
+tmux_agent_bar_emit_registered_records() {
+  printf '%b' "${ROWS}"
+}
+
+tmux_session_status_current_state_cached
+EOF
+  )
+
+  assert_equal \
+    "cached current state returns the matching row without refreshing sources" \
+    "working" \
+    "${actual}"
+
+  if [[ -e "${marker}" ]]; then
+    fail "cached current state unexpectedly refreshed sources"
+  fi
+
+  rm -rf "${tmp_dir}"
+}
+
+run_cached_state_case
+
+run_cached_render_case() {
+  local tmp_dir="" marker="" actual=""
+
+  tmp_dir=$(mktemp -d)
+  marker="${tmp_dir}/refresh-called"
+
+  actual=$(
+    CURRENT_SESSION="current" \
+    ROWS=$'current\tcodex\tworking\tlocal_explicit\t20\nother\tcodex\tdone\tlocal_explicit\t10\n' \
+    REFRESH_MARKER="${marker}" \
+    TARGET_SCRIPT="${TARGET_SCRIPT}" \
+    "${BASH}" <<'EOF'
+set -euo pipefail
+
+source "${TARGET_SCRIPT}"
+
+tmux_session_status_current_session() {
+  printf '%s\n' "${CURRENT_SESSION}"
+}
+
+tmux_agent_bar_maybe_refresh_sources() {
+  : > "${REFRESH_MARKER}"
+}
+
+tmux_agent_bar_emit_registered_records() {
+  printf '%b' "${ROWS}"
+}
+
+tmux_session_status_main_cached
+EOF
+  )
+
+  assert_equal \
+    "cached render filters the current session without refreshing sources" \
+    "#[fg=#21c7a8] other#[fg=default] " \
+    "${actual}"
+
+  if [[ -e "${marker}" ]]; then
+    fail "cached render unexpectedly refreshed sources"
+  fi
+
+  rm -rf "${tmp_dir}"
+}
+
+run_cached_render_case

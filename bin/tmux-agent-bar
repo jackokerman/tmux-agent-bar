@@ -33,22 +33,36 @@ tmux_agent_bar_load_user_modules() {
   tmux_agent_bar_load_dir "$(tmux_agent_bar_sources_dir)"
 }
 
-tmux_session_status_main() {
-  local current_target="${1:-}" current=""
+tmux_session_status_render_main() {
+  local refresh_mode="$1" current_target="${2:-}" current=""
 
   current=$(tmux_session_status_current_session "${current_target}")
-  tmux_agent_bar_maybe_refresh_sources
+  if [[ "${refresh_mode}" != "cached" ]]; then
+    tmux_agent_bar_maybe_refresh_sources
+  fi
   tmux_agent_bar_emit_registered_records "${current}" | tmux_session_status_render_records "${current}"
-  tmux_session_status_prune_orphan_state_files
+  if [[ "${refresh_mode}" != "cached" ]]; then
+    tmux_session_status_prune_orphan_state_files
+  fi
+}
+
+tmux_session_status_main() {
+  tmux_session_status_render_main "refresh" "${1:-}"
+}
+
+tmux_session_status_main_cached() {
+  tmux_session_status_render_main "cached" "${1:-}"
 }
 
 tmux_session_status_current_record() {
-  local current_target="${1:-}" current="" session="" agent="" state="" source="" updated_at=""
+  local refresh_mode="${1:-refresh}" current_target="${2:-}" current="" session="" agent="" state="" source="" updated_at=""
 
   current=$(tmux_session_status_current_session "${current_target}")
   [[ -n "${current}" ]] || return 0
 
-  tmux_agent_bar_maybe_refresh_sources
+  if [[ "${refresh_mode}" != "cached" ]]; then
+    tmux_agent_bar_maybe_refresh_sources
+  fi
 
   while IFS=$'\t' read -r session agent state source updated_at || [[ -n "${session:-}${agent:-}${state:-}${source:-}${updated_at:-}" ]]; do
     [[ -n "${session}" ]] || continue
@@ -63,7 +77,16 @@ tmux_session_status_current_record() {
 tmux_session_status_current_state() {
   local session="" agent="" state="" source="" updated_at=""
 
-  if IFS=$'\t' read -r session agent state source updated_at < <(tmux_session_status_current_record "${1:-}"); then
+  if IFS=$'\t' read -r session agent state source updated_at < <(tmux_session_status_current_record "refresh" "${1:-}"); then
+    [[ -n "${state:-}" ]] || return 0
+    printf '%s\n' "${state}"
+  fi
+}
+
+tmux_session_status_current_state_cached() {
+  local session="" agent="" state="" source="" updated_at=""
+
+  if IFS=$'\t' read -r session agent state source updated_at < <(tmux_session_status_current_record "cached" "${1:-}"); then
     [[ -n "${state:-}" ]] || return 0
     printf '%s\n' "${state}"
   fi
@@ -74,9 +97,21 @@ tmux_agent_bar_load_user_modules
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   case "${1:-}" in
+    render)
+      shift
+      tmux_session_status_main "$@"
+      ;;
+    render-cached)
+      shift
+      tmux_session_status_main_cached "$@"
+      ;;
     current-state)
       shift
       tmux_session_status_current_state "$@"
+      ;;
+    current-state-cached)
+      shift
+      tmux_session_status_current_state_cached "$@"
       ;;
     *)
       tmux_session_status_main "$@"
