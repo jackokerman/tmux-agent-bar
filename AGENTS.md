@@ -6,6 +6,8 @@ Do not add proprietary names, internal tool names, company-specific paths, or wo
 
 Keep work-specific integration in private overlays, user modules, and external scripts that are not checked in. For this repo, that usually means `~/.config/tmux-agent-bar/agents/*.sh`, `~/.config/tmux-agent-bar/sources/*.sh`, or other private glue around the public entrypoints in `bin/`.
 
+If a bug only affects the active-session label or tmux refresh timing, inspect the tmux-side wrapper or `status-left`/`status-right` config that calls this repo before changing the shared runtime.
+
 When you need placeholder names in docs, examples, or fixtures, use generic terms such as `remote`, `devbox`, `~/src/project`, `/workspace/project`, or `frontend/app`, not real internal project names or paths.
 
 Prefer documenting extension points and contracts over documenting one specific personal setup. If an integration detail only applies to a private environment, leave it out of the public repo or describe it generically.

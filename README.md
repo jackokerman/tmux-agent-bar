@@ -21,8 +21,10 @@ This repo is installation-agnostic. Clone it, vendor it, or manage it however yo
 A minimal tmux integration looks like:
 
 ```tmux
-set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar)"
+set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}')"
 ```
+
+Pass `#{session_id}` so tmux treats each session as a distinct `#()` job result and the current-session filter stays in sync when you switch sessions.
 
 If you want shorter shell commands, add the repo `bin/` directory to your `PATH` or symlink the two scripts wherever you prefer.
 

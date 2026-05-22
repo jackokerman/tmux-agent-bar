@@ -11,7 +11,7 @@ git clone https://github.com/jackokerman/tmux-agent-bar.git ~/src/tmux-agent-bar
 Then point `tmux` at the renderer entrypoint from whatever checkout path you chose:
 
 ```tmux
-set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar)"
+set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}')"
 ```
 
 If you want to call `tmux-agent-bar-hook` by name instead of by absolute path, expose the repo `bin/` directory however you prefer, such as adding it to your `PATH` or symlinking the scripts into `~/.local/bin`.

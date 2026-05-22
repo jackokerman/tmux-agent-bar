@@ -172,6 +172,13 @@ tmux_session_status_resolve_state() {
 }
 
 tmux_session_status_current_session() {
+  local target="${1:-}"
+
+  if [[ -n "${target}" ]]; then
+    tmux display-message -p -t "${target}" '#{session_name}' 2>/dev/null || printf '%s\n' "${target}"
+    return 0
+  fi
+
   tmux display-message -p '#{session_name}' 2>/dev/null || true
 }
 
