@@ -104,7 +104,7 @@ run_shell_wrapped_hook_recovery_case() {
 
 › Find and fix a bug in @filename
 
-  gpt-5.4 xhigh · ~/stripe
+  gpt-5.4 xhigh · ~/src/project
 EOF
     }
 

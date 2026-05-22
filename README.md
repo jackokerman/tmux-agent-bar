@@ -69,6 +69,8 @@ User-provided modules live under:
 ~/.config/tmux-agent-bar/sources/*.sh
 ```
 
+Remote or devbox-specific integrations belong in those user-provided source modules, not in the checked-in runtime.
+
 ## Development
 
 Run the regression suite with:

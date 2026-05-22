@@ -55,7 +55,7 @@ run_case \
 
 › Implement {feature}
 
-  gpt-5.4 xhigh · /pay/src/pay-server
+  gpt-5.4 xhigh · /workspace/project
 EOF
 )"
 
@@ -95,7 +95,7 @@ run_case \
 
 › Implement {feature}
 
-  gpt-5.4 xhigh · /pay/src/pay-server
+  gpt-5.4 xhigh · /workspace/project
 EOF
 )"
 
@@ -159,7 +159,7 @@ run_case \
 
 › Find and fix a bug in @filename
 
-  gpt-5.4 xhigh · ~/stripe
+  gpt-5.4 xhigh · ~/src/project
 EOF
 )"
 
@@ -175,7 +175,7 @@ PostToolUse hook (completed)
 
 › Find and fix a bug in @filename
 
-  gpt-5.4 xhigh · ~/stripe
+  gpt-5.4 xhigh · ~/src/project
 EOF
 )"
 
@@ -189,7 +189,7 @@ run_case \
 
 › Run /review on my current changes
 
-  gpt-5.4 xhigh · /pay/src/pay-server/frontend/dashboard-object-creation
+  gpt-5.4 xhigh · /workspace/project/frontend/app
 EOF
 )"
 
@@ -205,7 +205,7 @@ run_case \
 
 › Run /review on my current changes
 
-  gpt-5.4 xhigh · /pay/src/pay-server/frontend/dashboard-object-creation
+  gpt-5.4 xhigh · /workspace/project/frontend/app
 EOF
 )"
 
