@@ -1,39 +1,47 @@
 # tmux-agent-bar
 
-Status-line-first tmux agent status tracking for local and remote coding sessions.
+Status-line-first agent status tracking for tmux sessions.
+
+`tmux-agent-bar` renders a compact tmux status segment for your other sessions
+so you can see which agent panes are working, waiting for input, or done without
+switching away from your current session. It is launcher-agnostic: hooks,
+local pane inspection, and optional source modules all write the same generic
+state records.
 
 ## What it does
 
-- Renders a compact `status-right` segment for non-current tmux sessions.
-- Tracks explicit `working`, `waiting`, and `done` state via a hook entrypoint.
-- Includes a small Codex hook adapter for lifecycle and approval events.
-- Preserves live pane-tail inference for agents like `codex` that do not expose every state transition through hooks.
-- Supports extra record sources, so local rows and remote rows can share the same renderer.
-- Includes a built-in remote cache reader without baking any transport logic into the runtime.
+- Renders `working`, `waiting`, and `done` state for non-current tmux sessions.
+- Tracks explicit state through `bin/tmux-agent-bar-hook`.
+- Includes built-in agent classifiers for `claude` and `codex`.
+- Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and
+  approval hook events.
+- Preserves live pane-tail inference for prompt states that hooks do not expose.
+- Supports extra source modules, so local rows and remote rows share one
+  renderer.
+- Reads an optional remote cache without baking transport logic into the
+  runtime.
 
-## Install
+## Quick start
 
-This repo is installation-agnostic. Clone it, vendor it, or manage it however you want. The runtime only assumes tmux can execute these entrypoints from your checkout:
-
-```text
-/path/to/tmux-agent-bar/bin/tmux-agent-bar
-/path/to/tmux-agent-bar/bin/tmux-agent-bar-hook
-/path/to/tmux-agent-bar/bin/tmux-agent-bar-codex-hook
-```
-
-A minimal tmux integration looks like:
+Clone, vendor, or otherwise place this repo wherever you want. Then point tmux
+at the renderer entrypoint:
 
 ```tmux
 set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}')"
 ```
 
-Pass `#{session_id}` so tmux treats each session as a distinct `#()` job result and the current-session filter stays in sync when you switch sessions.
+Pass `#{session_id}` so tmux treats each session as a distinct `#()` job result
+and the current-session filter stays in sync when you switch sessions.
 
-If you want shorter shell commands, add the repo `bin/` directory to your `PATH` or symlink whichever entrypoints you want wherever you prefer.
+If you want shorter commands, add the repo `bin/` directory to your `PATH` or
+symlink the entrypoints you use into a directory that is already on your `PATH`.
 
-## Agent hooks
+See [docs/install.md](docs/install.md) for the shorter install reference.
 
-Write explicit state for the current tmux session:
+## Hook integration
+
+Use the generic hook entrypoint to write explicit state for the current tmux
+session:
 
 ```bash
 /path/to/tmux-agent-bar/bin/tmux-agent-bar-hook working codex
@@ -41,69 +49,108 @@ Write explicit state for the current tmux session:
 /path/to/tmux-agent-bar/bin/tmux-agent-bar-hook done codex
 ```
 
-For Codex, point the supported official hook events at:
+The second argument is the agent name. If omitted, it defaults to `claude`.
+
+For Codex, point supported hook events at:
 
 ```text
 /path/to/tmux-agent-bar/bin/tmux-agent-bar-codex-hook <HookEvent>
 ```
 
-The adapter maps:
+The Codex adapter maps:
 
 - `PermissionRequest` to `waiting`
 - `UserPromptSubmit`, `PreToolUse`, and `PostToolUse` to `working`
 - `SessionStart` and `Stop` to `done`
 
-Codex still needs live tail inference for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
+Codex still needs live tail inference for in-turn question and plan
+confirmation prompts because those do not currently have a dedicated hook
+event.
 
-The state file format is:
+## CLI entrypoints
+
+`bin/tmux-agent-bar` defaults to rendering the status segment:
+
+```bash
+/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}'
+```
+
+It also supports explicit subcommands:
+
+```text
+render [current-target]
+render-cached [current-target]
+current-state [current-target]
+current-state-cached [current-target]
+```
+
+Use `render-cached` or `current-state-cached` when the caller must avoid source
+refresh hooks. Use `current-state` when another tmux-side integration needs the
+current session's resolved state instead of the rendered multi-session segment.
+
+## State and cache files
+
+Explicit local hook state is stored under:
+
+```text
+${STATE_DIR:-/tmp/tmux-agent-$(id -u)}
+```
+
+Each state file contains:
 
 ```text
 agent<TAB>state
 ```
 
-## Extension points
-
-Agent modules register:
-
-- command name
-- tail classifier function
-
-Source modules register:
-
-- record emitter
-- optional refresh function
-
-Normalized source rows must look like:
-
-```text
-session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
-```
-
-## Remote cache contract
-
-The checked-in runtime includes a generic remote cache source that reads:
+The generic remote cache source reads:
 
 ```text
 ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/remote-rows.tsv
 ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt
 ```
 
-`remote-rows.tsv` uses the normalized five-column row format above.
+`remote-rows.tsv` uses the normalized five-column row format:
 
-`shadowed-sessions.txt` is a plain newline-delimited list of tmux session labels that the local collector should suppress because a remote row is already representing them. Only replacement sources should write this file; additive sources should emit rows directly and must not shadow local rows.
+```text
+session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
+```
 
-How those files get populated is intentionally left to user modules, overlays, or external scripts.
+`shadowed-sessions.txt` is a newline-delimited list of tmux session labels that
+the local collector should suppress because another source already represents
+them. Only replacement sources should write this file; additive sources should
+emit rows directly and must not shadow local rows.
 
-## Config
+How those files get populated is intentionally left to user modules, overlays,
+or external scripts.
 
-User-provided modules live under:
+See [docs/sources.md](docs/sources.md) for the source contract.
+
+## User modules
+
+Optional user-provided modules live under:
 
 ```text
 ~/.config/tmux-agent-bar/agents/*.sh
 ~/.config/tmux-agent-bar/sources/*.sh
 ```
 
-Remote or devbox-specific transport logic belongs in those user-provided source modules or external scripts, not in the checked-in runtime.
+Agent modules register a command name and a tail classifier function. Source
+modules register a record emitter and, optionally, a refresh function.
+
+See [docs/agents.md](docs/agents.md) and [docs/sources.md](docs/sources.md) for
+the module contracts.
+
+## Repository layout
+
+```text
+bin/       runtime entrypoints
+agents/    built-in agent classifiers
+sources/   built-in record sources
+lib/       shared shell functions
+docs/      install, agent, source, and migration notes
+examples/  tmux and source snippets
+tests/     regression tests
+```
 
 ## Development
 
