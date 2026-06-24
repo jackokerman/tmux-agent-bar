@@ -85,6 +85,12 @@ tmux_codex_completed_hook_name() {
   printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
+tmux_codex_line_is_turn_complete_boundary() {
+  local line="$1"
+
+  [[ "${line}" == *"Worked for "* ]]
+}
+
 tmux_codex_line_is_working() {
   local line="$1"
 
@@ -155,6 +161,11 @@ tmux_codex_infer_state_from_tail() {
   local tail="$1" line="" state="" hook="" completed_hooks=""
 
   while IFS= read -r line; do
+    if tmux_codex_line_is_turn_complete_boundary "${line}"; then
+      printf '%s\n' ""
+      return 0
+    fi
+
     hook=$(tmux_codex_completed_hook_name "${line}" 2>/dev/null || true)
     if [[ -n "${hook}" ]]; then
       completed_hooks+=$'\n'"${hook}"

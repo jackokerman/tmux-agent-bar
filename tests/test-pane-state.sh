@@ -150,6 +150,24 @@ EOF
 )"
 
 run_case \
+    "codex completed turn boundary stops stale working transcript" \
+    "codex" \
+    "" \
+    "$(cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+• The check passed and the session is idle now.
+
+─ Worked for 2m 31s ─
+
+
+› Audit this parser
+
+  gpt-5.4 xhigh · 78% left · ~/src/project
+EOF
+)"
+
+run_case \
     "live post-tool-use hook stays working" \
     "codex" \
     "working" \
