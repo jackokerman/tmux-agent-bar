@@ -10,7 +10,6 @@ Status-line-first tmux agent status tracking for local and remote coding session
 - Preserves live pane-tail inference for agents like `codex` that do not expose every state transition through hooks.
 - Supports extra record sources, so local rows and remote rows can share the same renderer.
 - Includes a built-in remote cache reader without baking any transport logic into the runtime.
-- Can track configured one-shot tmux sessions while their launcher process is still running without shadowing local agent detection.
 
 ## Install
 
@@ -91,7 +90,7 @@ ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt
 
 `remote-rows.tsv` uses the normalized five-column row format above.
 
-`shadowed-sessions.txt` is a plain newline-delimited list of tmux session labels that the local collector should suppress because a remote row is already representing them. Only replacement sources should write this file; additive sources such as `one-shot` should emit rows directly and must not shadow local rows.
+`shadowed-sessions.txt` is a plain newline-delimited list of tmux session labels that the local collector should suppress because a remote row is already representing them. Only replacement sources should write this file; additive sources should emit rows directly and must not shadow local rows.
 
 How those files get populated is intentionally left to user modules, overlays, or external scripts.
 
@@ -105,22 +104,6 @@ User-provided modules live under:
 ```
 
 Remote or devbox-specific transport logic belongs in those user-provided source modules or external scripts, not in the checked-in runtime.
-
-### One-shot sessions
-
-The built-in `one-shot` source is disabled until you create:
-
-```text
-~/.config/tmux-agent-bar/one-shot.tsv
-```
-
-Each non-comment row tracks one tmux session label and one or more descendant process commands:
-
-```text
-session_label<TAB>command<TAB>another-command
-```
-
-When a configured session is not current and one of its commands is still running under a pane in that session, the source emits a `one_shot` working row. Sessions with explicit agent state or a known live agent process are left to the local source, so `one-shot` does not duplicate or shadow normal agent-session rows.
 
 ## Development
 

@@ -254,57 +254,6 @@ run_shadowed_session_case() {
 run_shadowed_session_case \
     "shadowed sessions are suppressed before local rendering"
 
-run_one_shot_shadow_block_ignored_case() {
-  local name="$1"
-
-  (
-    local tmp_dir="" state_dir="" cache_dir="" shadow_file="" actual=""
-
-    tmp_dir=$(mktemp -d)
-    state_dir="${tmp_dir}/state"
-    cache_dir="${tmp_dir}/cache"
-    shadow_file="${cache_dir}/tmux-agent-bar/shadowed-sessions.txt"
-    mkdir -p "${state_dir}" "$(dirname "${shadow_file}")"
-
-    STATE_DIR="${state_dir}"
-    XDG_CACHE_HOME="${cache_dir}"
-    printf 'codex\tworking\n' > "$(tmux_agent_bar_state_file_path "Playground")"
-    cat > "${shadow_file}" <<'EOF'
-remote-only
-# tmux-agent-bar one-shot begin
-Playground
-# tmux-agent-bar one-shot end
-EOF
-
-    _session_has_known_agent_pane() {
-      return 0
-    }
-
-    _session_agent_command() {
-      printf '%s\n' "codex"
-    }
-
-    _session_live_state() {
-      printf '%s\n' "working"
-    }
-
-    _state_file_mtime() {
-      printf '%s\n' "42"
-    }
-
-    actual=$(tmux_session_status_emit_local_record "Playground" "current")
-    assert_equal \
-      "${name}" \
-      $'Playground\tcodex\tworking\tlocal_explicit\t42' \
-      "${actual}"
-
-    rm -rf "${tmp_dir}"
-  )
-}
-
-run_one_shot_shadow_block_ignored_case \
-    "stale one-shot shadow blocks do not suppress local rendering"
-
 run_snapshot_collection_case() {
   local name="$1"
 
