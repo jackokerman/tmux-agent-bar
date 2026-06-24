@@ -272,14 +272,14 @@ printf '%s\n' "$*" >> "${TMUX_LOG}"
 if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
   printf '%s\n' "current"
   printf '%s\n' "direct-agent"
-  printf '%s\n' "wrapped-agent"
+  printf '%s\n' "wrapped agent"
   exit 0
 fi
 
 if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
   printf '%s\t%s\t%s\n' "current" "100" "zsh"
   printf '%s\t%s\t%s\n' "direct-agent" "200" "codex"
-  printf '%s\t%s\t%s\n' "wrapped-agent" "300" "bash"
+  printf '%s\t%s\t%s\n' "wrapped agent" "300" "bash"
   exit 0
 fi
 
@@ -317,7 +317,7 @@ EOF
 
     assert_equal \
       "${name}" \
-      $'direct-agent\tcodex\tdone\tlocal_fallback\t0\nwrapped-agent\tcodex\tdone\tlocal_fallback\t0' \
+      $'direct-agent\tcodex\tdone\tlocal_fallback\t0\nwrapped agent\tcodex\tdone\tlocal_fallback\t0' \
       "${actual}"
 
     list_sessions_calls=$(grep -c '^list-sessions -F ' "${tmp_dir}/tmux.log" || true)

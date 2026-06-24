@@ -5,13 +5,102 @@ TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
+TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=""
 
 tmux_agent_bar_local_prepare_snapshots() {
+  local target_agents="" known_command=""
+
   TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY=1
   TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT=$(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
   TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT=$(tmux list-panes -a -F '#{session_name}'$'\t''#{pane_pid}'$'\t''#{pane_current_command}' 2>/dev/null || true)
   TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
   TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
+  TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=""
+
+  for known_command in "${KNOWN_AGENT_COMMANDS[@]}"; do
+    [[ -n "${known_command}" ]] || continue
+    if [[ -n "${target_agents}" ]]; then
+      target_agents+=","
+    fi
+    target_agents+="${known_command}"
+  done
+
+  if [[ -n "${target_agents//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}" ]]; then
+    TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=$(
+      awk -v target_agents="${target_agents}" '
+        BEGIN {
+          agent_count = split(target_agents, agents, ",")
+          for (i = 1; i <= agent_count; i++) {
+            if (agents[i] != "") {
+              wanted[agents[i]] = 1
+            }
+          }
+        }
+
+        FNR == NR {
+          split($0, pane_fields, "\t")
+          session = pane_fields[1]
+          pid = pane_fields[2]
+          comm = pane_fields[3]
+
+          if (session == "" || pid !~ /^[0-9]+$/) {
+            next
+          }
+
+          pane_session[pid] = session
+          if (wanted[comm] && !seen_session[session]) {
+            seen_session[session] = 1
+            direct_command[session] = comm
+          }
+          next
+        }
+
+        {
+          pid = $1
+          ppid = $2
+          comm = $3
+
+          if (pid !~ /^[0-9]+$/) {
+            next
+          }
+
+          parent[pid] = ppid
+          if (wanted[comm]) {
+            candidate_count += 1
+            candidate_pid[candidate_count] = pid
+            candidate_command[candidate_count] = comm
+          }
+        }
+
+        END {
+          for (session in direct_command) {
+            print session "\t" direct_command[session]
+          }
+
+          for (i = 1; i <= candidate_count; i++) {
+            current = candidate_pid[i]
+            depth = 0
+
+            while (current != "" && current != "1" && depth < 256) {
+              depth += 1
+              if (current in pane_session) {
+                session = pane_session[current]
+                if (!seen_session[session]) {
+                  seen_session[session] = 1
+                  print session "\t" candidate_command[i]
+                }
+                break
+              }
+              if (parent[current] == current) {
+                break
+              }
+              current = parent[current]
+            }
+          }
+        }
+      ' <(printf '%s\n' "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}") <(printf '%s\n' "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}")
+    )
+  fi
 
   local shadowed_sessions_file=""
 
@@ -81,6 +170,22 @@ _session_is_shadowed() {
 _session_live_agent_command() {
   local session="$1" agent="${2:-}" pane_rows="" pane_pids="" ps_snapshot="" target_command=""
   local target_agents="" live_agent_command="" pane_session="" pane_pid="" pane_command="" known_command=""
+  local snapshot_session="" snapshot_command=""
+
+  if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
+    target_command=$(tmux_agent_bar_command_for_agent "${agent}" 2>/dev/null || true)
+    while IFS=$'\t' read -r snapshot_session snapshot_command || [[ -n "${snapshot_session:-}${snapshot_command:-}" ]]; do
+      [[ -n "${snapshot_session}" ]] || continue
+      [[ "${snapshot_session}" == "${session}" ]] || continue
+      if [[ -n "${target_command}" && "${snapshot_command}" != "${target_command}" ]]; then
+        return 1
+      fi
+      printf '%s\n' "${snapshot_command}"
+      return 0
+    done <<< "${TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT}"
+
+    return 1
+  fi
 
   pane_rows=$(_session_pane_rows "${session}")
   while IFS=$'\t' read -r pane_session pane_pid pane_command || [[ -n "${pane_session:-}${pane_pid:-}${pane_command:-}" ]]; do
