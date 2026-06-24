@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+blocked_pattern() {
+  local -a terms=(
+    "str""ipe"
+    "dev""vy"
+    "pay"" remote"
+    "re""xec"
+    "mi""nt"
+    "para""gon"
+    "git"'\.'"corp"
+    "str""ipe-internal"
+    "/pay""/src"
+    "~/str""ipe"
+    "/Users/[^[:space:]]+/str""ipe"
+  )
+  local pattern="" term=""
+
+  for term in "${terms[@]}"; do
+    if [[ -n "${pattern}" ]]; then
+      pattern+="|"
+    fi
+    pattern+="${term}"
+  done
+
+  printf '%s\n' "${pattern}"
+}
+
+main() {
+  local matches="" pattern=""
+
+  pattern=$(blocked_pattern)
+  matches=$(
+    {
+      git -C "${PROJECT_ROOT}" grep -In -E "${pattern}" 2>/dev/null || true
+      git -C "${PROJECT_ROOT}" rev-list --all |
+        xargs git -C "${PROJECT_ROOT}" grep -In -E "${pattern}" 2>/dev/null || true
+    } | sort -u
+  )
+
+  if [[ -n "${matches}" ]]; then
+    printf 'tmux-agent-bar public history check failed.\n' >&2
+    printf 'Blocked work-specific strings were found in reachable history:\n' >&2
+    printf '%s\n' "${matches}" >&2
+    return 1
+  fi
+}
+
+main "$@"

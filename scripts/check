@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+run_bash_syntax() {
+  local -a files=(
+    "bin/tmux-agent-bar"
+    "bin/tmux-agent-bar-hook"
+    "bin/tmux-agent-bar-codex-hook"
+    "lib/local-collector.sh"
+    "lib/reconcile.sh"
+    "lib/registry.sh"
+    "lib/render.sh"
+    "lib/state.sh"
+    "lib/tail.sh"
+    "lib/util.sh"
+    "agents/claude.sh"
+    "agents/codex.sh"
+    "sources/local.sh"
+    "sources/one-shot.sh"
+    "sources/remote-cache.sh"
+    "scripts/check-public-history"
+    "compat/legacy-overlay.sh"
+    "tests/test-pane-state.sh"
+    "tests/test-current-state.sh"
+    "tests/test-hooks.sh"
+    "tests/test-one-shot-source.sh"
+    "tests/test-remote-cache.sh"
+    "tests/test-session-status-local.sh"
+    "tests/test-session-status.sh"
+    "tests/test-overlay-contract.sh"
+    "tests/test-registration.sh"
+    "tests/testlib.sh"
+  )
+
+  (cd "${PROJECT_ROOT}" && bash -n "${files[@]}")
+}
+
+run_tests() {
+  "${PROJECT_ROOT}/tests/test-pane-state.sh"
+  "${PROJECT_ROOT}/tests/test-current-state.sh"
+  "${PROJECT_ROOT}/tests/test-hooks.sh"
+  "${PROJECT_ROOT}/tests/test-one-shot-source.sh"
+  "${PROJECT_ROOT}/tests/test-remote-cache.sh"
+  "${PROJECT_ROOT}/tests/test-session-status-local.sh"
+  "${PROJECT_ROOT}/tests/test-session-status.sh"
+  "${PROJECT_ROOT}/tests/test-overlay-contract.sh"
+  "${PROJECT_ROOT}/tests/test-registration.sh"
+  "${PROJECT_ROOT}/scripts/check-public-history"
+}
+
+run_bash_syntax
+run_tests

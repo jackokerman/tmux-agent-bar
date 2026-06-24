@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TMUX_AGENT_BAR_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/bin/tmux-agent-bar-hook"
+
+tmux_agent_bar_codex_hook_state_for_event() {
+  local event="$1"
+
+  case "${event}" in
+    PermissionRequest)
+      printf '%s\n' "waiting"
+      ;;
+    UserPromptSubmit|PreToolUse|PostToolUse)
+      printf '%s\n' "working"
+      ;;
+    SessionStart|Stop)
+      printf '%s\n' "done"
+      ;;
+    *)
+      printf '%s\n' ""
+      ;;
+  esac
+}
+
+tmux_agent_bar_codex_hook_main() {
+  local event="${1:-}" state=""
+
+  cat >/dev/null || true
+
+  state=$(tmux_agent_bar_codex_hook_state_for_event "${event}")
+  [[ -n "${state}" ]] || return 0
+
+  tmux_agent_bar_hook_main "${state}" "codex"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  tmux_agent_bar_codex_hook_main "$@"
+fi
