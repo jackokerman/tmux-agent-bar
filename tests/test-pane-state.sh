@@ -168,6 +168,58 @@ EOF
 )"
 
 run_case \
+    "codex current-turn working below completed boundary stays working" \
+    "codex" \
+    "working" \
+    "$(cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+─ Worked for 2m 31s ─
+
+• Working (4s • esc to interrupt)
+
+
+› Audit this parser
+
+  gpt-5.4 xhigh · 78% left · ~/src/project
+EOF
+)"
+
+run_case \
+    "codex waiting prompt above completed boundary stays neutral" \
+    "codex" \
+    "" \
+    "$(cat <<'EOF'
+Question 1/1 (1 unanswered)
+tab to add notes | enter to submit answer | esc to interrupt
+
+─ Worked for 2m 31s ─
+
+
+› Audit this parser
+
+  gpt-5.4 xhigh · 78% left · ~/src/project
+EOF
+)"
+
+run_case \
+    "codex waiting prompt below completed boundary stays waiting" \
+    "codex" \
+    "waiting" \
+    "$(cat <<'EOF'
+─ Worked for 2m 31s ─
+
+Question 1/1 (1 unanswered)
+tab to add notes | enter to submit answer | esc to interrupt
+
+
+› Audit this parser
+
+  gpt-5.4 xhigh · 78% left · ~/src/project
+EOF
+)"
+
+run_case \
     "live post-tool-use hook stays working" \
     "codex" \
     "working" \

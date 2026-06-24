@@ -326,13 +326,6 @@ _state_file_mtime() {
   printf '%s\n' "${updated_at}"
 }
 
-_touch_state_file() {
-  local state_file="$1"
-
-  [[ -f "${state_file}" ]] || return 1
-  touch "${state_file}" 2>/dev/null
-}
-
 tmux_session_status_emit_local_record() {
   local session="$1" current="$2" state="" active_agent="" agent="" live_state=""
   local has_known_agent_pane=0 stale_working=0 agent_mismatch=0 state_file="" updated_at=0 source=""
@@ -358,9 +351,6 @@ tmux_session_status_emit_local_record() {
         agent_mismatch=1
       fi
       live_state=$(_session_live_state "${session}" "${active_agent:-${agent}}")
-      if [[ "${state}" == "working" && "${live_state}" == "working" ]]; then
-        _touch_state_file "${state_file}" || true
-      fi
       if [[ "${state}" == "working" && -z "${live_state}" ]] && _state_file_has_stale_working "${state_file}"; then
         stale_working=1
       fi

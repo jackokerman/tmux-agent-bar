@@ -185,16 +185,56 @@ run_idle_fallback_done_case() {
 run_idle_fallback_done_case \
     "fallback sessions stay visible as done when the live pane is neutral"
 
-run_working_heartbeat_case() {
+run_explicit_done_idle_case() {
   local name="$1"
 
   (
-    local tmp_dir="" session="heartbeat" actual="" second_actual=""
+    local tmp_dir="" session="done-idle" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 0
+    }
+
+    _session_agent_command() {
+      printf '%s\n' "codex"
+    }
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    _state_file_mtime() {
+      printf '%s\n' "42"
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'done-idle\tcodex\tdone\tlocal_explicit\t42' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_explicit_done_idle_case \
+    "explicit done stays done when the live pane is idle"
+
+run_working_live_inference_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="live-working" actual="" second_actual="" initial_mtime="" final_mtime=""
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
     printf 'codex\tworking\n' > "${STATE_DIR}/${session}"
     touch -t 202001010000 "${STATE_DIR}/${session}"
+    initial_mtime=$(_state_file_mtime "${STATE_DIR}/${session}")
 
     _session_agent_command() {
       printf '%s\n' "codex"
@@ -207,8 +247,13 @@ run_working_heartbeat_case() {
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_matches \
       "${name}" \
-      $'^heartbeat\tcodex\tworking\tlocal_explicit\t[0-9]+$' \
+      $'^live-working\tcodex\tworking\tlocal_explicit\t[0-9]+$' \
       "${actual}"
+    final_mtime=$(_state_file_mtime "${STATE_DIR}/${session}")
+    assert_equal \
+      "${name} does not refresh durable state from live inference" \
+      "${initial_mtime}" \
+      "${final_mtime}"
 
     _session_live_state() {
       printf '%s\n' ""
@@ -216,16 +261,16 @@ run_working_heartbeat_case() {
 
     second_actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_equal \
-      "${name} survives a transient empty live parse" \
-      "${actual}" \
+      "${name} expires stale working when live inference is neutral" \
+      $'live-working\tcodex\tdone\tlocal_explicit\t'"${initial_mtime}" \
       "${second_actual}"
 
     rm -rf "${tmp_dir}"
   )
 }
 
-run_working_heartbeat_case \
-    "live working refreshes the explicit state heartbeat"
+run_working_live_inference_case \
+    "live working renders working without touching explicit state"
 
 run_shadowed_session_case() {
   local name="$1"

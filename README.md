@@ -138,7 +138,7 @@ Agent modules register a command name and a tail classifier function. Source
 modules register a record emitter and, optionally, a refresh function.
 
 See [docs/agents.md](docs/agents.md) and [docs/sources.md](docs/sources.md) for
-the module contracts.
+the module contracts, including the explicit-state precedence model.
 
 ## Repository layout
 
