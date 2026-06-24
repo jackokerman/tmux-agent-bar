@@ -56,7 +56,7 @@ _session_has_known_agent_pane() {
 }
 
 _session_is_shadowed() {
-  local session="$1" line="" shadowed_sessions=""
+  local session="$1" line="" shadowed_sessions="" in_one_shot_block=0
 
   if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
     shadowed_sessions="${TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT}"
@@ -71,6 +71,15 @@ _session_is_shadowed() {
 
   while IFS= read -r line || [[ -n "${line:-}" ]]; do
     [[ -n "${line}" ]] || continue
+    if [[ "${line}" == "# tmux-agent-bar one-shot begin" ]]; then
+      in_one_shot_block=1
+      continue
+    fi
+    if [[ "${line}" == "# tmux-agent-bar one-shot end" ]]; then
+      in_one_shot_block=0
+      continue
+    fi
+    [[ "${in_one_shot_block}" == "0" ]] || continue
     [[ "${line}" == \#* ]] && continue
     [[ "${line}" == "${session}" ]] && return 0
   done <<< "${shadowed_sessions}"

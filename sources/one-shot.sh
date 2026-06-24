@@ -198,48 +198,16 @@ tmux_agent_bar_one_shot_session_state() {
   esac
 }
 
-tmux_agent_bar_one_shot_refresh_shadowed_sessions() {
-  local shadowed_sessions_file="" shadowed_sessions_dir="" temp_file="" session="" line="" in_managed_block=0
-
-  shadowed_sessions_file=$(tmux_agent_bar_shadowed_sessions_file)
-  shadowed_sessions_dir=$(dirname "${shadowed_sessions_file}")
-  mkdir -p "${shadowed_sessions_dir}"
-  temp_file=$(mktemp "${shadowed_sessions_dir}/shadowed-sessions.XXXXXX")
-
-  if [[ -f "${shadowed_sessions_file}" ]]; then
-    while IFS= read -r line || [[ -n "${line:-}" ]]; do
-      if [[ "${line}" == "# tmux-agent-bar one-shot begin" ]]; then
-        in_managed_block=1
-        continue
-      fi
-      if [[ "${line}" == "# tmux-agent-bar one-shot end" ]]; then
-        in_managed_block=0
-        continue
-      fi
-      [[ "${in_managed_block}" == "0" ]] || continue
-      printf '%s\n' "${line}" >> "${temp_file}"
-    done < "${shadowed_sessions_file}"
-  fi
-
-  if [[ -n "$(tmux_agent_bar_one_shot_sessions)" ]]; then
-    printf '%s\n' "# tmux-agent-bar one-shot begin" >> "${temp_file}"
-    while IFS= read -r session || [[ -n "${session:-}" ]]; do
-      [[ -n "${session}" ]] || continue
-      printf '%s\n' "${session}" >> "${temp_file}"
-    done < <(tmux_agent_bar_one_shot_sessions)
-    printf '%s\n' "# tmux-agent-bar one-shot end" >> "${temp_file}"
-  fi
-
-  mv "${temp_file}" "${shadowed_sessions_file}"
-}
-
 tmux_agent_bar_one_shot_emit() {
-  local current="$1" session="" state=""
+  local current="$1" session="" state="" state_file=""
 
   while IFS= read -r session; do
     [[ -n "${session}" ]] || continue
     [[ "${session}" != "${current}" ]] || continue
     tmux_agent_bar_one_shot_session_is_tracked "${session}" || continue
+    state_file=$(tmux_agent_bar_state_file_path "${session}")
+    [[ -f "${state_file}" ]] && continue
+    _session_has_known_agent_pane "${session}" && continue
     if tmux_agent_bar_one_shot_session_has_process "${session}"; then
       state=$(tmux_agent_bar_one_shot_session_state "${session}")
       tmux_session_status_emit_record "${session}" "one-shot" "${state}" "one_shot" "0"
@@ -247,4 +215,4 @@ tmux_agent_bar_one_shot_emit() {
   done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
 }
 
-tmux_agent_register_source "one-shot" "tmux_agent_bar_one_shot_emit" "tmux_agent_bar_one_shot_refresh_shadowed_sessions"
+tmux_agent_register_source "one-shot" "tmux_agent_bar_one_shot_emit"

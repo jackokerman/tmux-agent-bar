@@ -133,7 +133,7 @@ run_unconfigured_session_ignored_case() {
   )
 }
 
-run_agent_tail_state_case() {
+run_known_agent_session_deferred_case() {
   local actual=""
 
   (
@@ -170,88 +170,13 @@ run_agent_tail_state_case() {
 
     actual=$(tmux_agent_bar_one_shot_emit "current")
     assert_equal \
-      "one-shot source uses live agent tail state" \
-      $'Playground\tone-shot\tworking\tone_shot\t0' \
+      "one-shot source defers known agent sessions to the local source" \
+      "" \
       "${actual}"
-  )
-}
-
-run_shadow_refresh_case() {
-  local actual=""
-
-  (
-    local tmp_dir="" shadow_file=""
-
-    write_one_shot_config \
-      $'Playground\tplayground-session' \
-      $'Review\treview-session'
-
-    tmp_dir=$(mktemp -d)
-    XDG_CACHE_HOME="${tmp_dir}/cache"
-    shadow_file="${XDG_CACHE_HOME}/tmux-agent-bar/shadowed-sessions.txt"
-    mkdir -p "$(dirname "${shadow_file}")"
-
-    cat > "${shadow_file}" <<'EOF'
-external-source
-# tmux-agent-bar one-shot begin
-stale session
-# tmux-agent-bar one-shot end
-EOF
-
-    tmux_agent_bar_one_shot_refresh_shadowed_sessions
-    actual=$(<"${shadow_file}")
-
-    assert_equal \
-      "one-shot refresh preserves external shadow entries" \
-      "$(cat <<'EOF'
-external-source
-# tmux-agent-bar one-shot begin
-Playground
-Review
-# tmux-agent-bar one-shot end
-EOF
-)" \
-      "${actual}"
-
-    rm -rf "${tmp_dir}"
-  )
-}
-
-run_no_config_removes_managed_shadow_block_case() {
-  local actual=""
-
-  (
-    local tmp_dir="" shadow_file=""
-
-    rm -f "${XDG_CONFIG_HOME}/tmux-agent-bar/one-shot.tsv"
-
-    tmp_dir=$(mktemp -d)
-    XDG_CACHE_HOME="${tmp_dir}/cache"
-    shadow_file="${XDG_CACHE_HOME}/tmux-agent-bar/shadowed-sessions.txt"
-    mkdir -p "$(dirname "${shadow_file}")"
-
-    cat > "${shadow_file}" <<'EOF'
-external-source
-# tmux-agent-bar one-shot begin
-stale session
-# tmux-agent-bar one-shot end
-EOF
-
-    tmux_agent_bar_one_shot_refresh_shadowed_sessions
-    actual=$(<"${shadow_file}")
-
-    assert_equal \
-      "one-shot refresh removes stale managed shadow block without config" \
-      "external-source" \
-      "${actual}"
-
-    rm -rf "${tmp_dir}"
   )
 }
 
 run_configured_session_emit_case
 run_current_session_hidden_case
 run_unconfigured_session_ignored_case
-run_agent_tail_state_case
-run_shadow_refresh_case
-run_no_config_removes_managed_shadow_block_case
+run_known_agent_session_deferred_case

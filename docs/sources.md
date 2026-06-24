@@ -21,6 +21,7 @@ session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
 ```
 
 If a remote row should replace a local row for the same tmux session, add that session label to `${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt`.
+Only replacement sources should write this file. Additive sources such as `one-shot` emit rows directly and must not shadow local rows.
 
 Remote transport, polling, and cache population are still intentionally left to user modules, overlays, or external scripts so the checked-in runtime stays generic.
 
@@ -29,3 +30,5 @@ The `one-shot` source is configured with `${XDG_CONFIG_HOME:-$HOME/.config}/tmux
 ```text
 session_label<TAB>command<TAB>another-command
 ```
+
+`one-shot` is additive and only reports configured launcher-style sessions that the local source does not already own through explicit agent state or a known live agent process.
