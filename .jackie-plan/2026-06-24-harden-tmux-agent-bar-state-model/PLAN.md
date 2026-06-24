@@ -1,9 +1,9 @@
 ---
 id: 2026-06-24-harden-tmux-agent-bar-state-model
 title: Harden tmux-agent-bar state model
-state: ready-to-ship
+state: complete
 createdAt: 2026-06-24T22:21:37.150Z
-updatedAt: 2026-06-24T22:42:12.584Z
+updatedAt: 2026-06-24T22:42:31.041Z
 ---
 
 # Harden tmux-agent-bar state model
