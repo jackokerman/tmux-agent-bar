@@ -145,13 +145,13 @@ run_render_case \
     "renderer uses the full available width before showing an ellipsis" \
     "19" \
     $'alpha\tcodex\tworking\tlocal_explicit\t10\nbeta\tcodex\twaiting\tlocal_explicit\t20\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#82aaff] alpha#[fg=default]  #[fg=#e3d18a] beta#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
+    $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
 
 run_render_case \
     "renderer drops the last visible item when it needs room for the ellipsis" \
     "17" \
     $'alpha\tcodex\tworking\tlocal_explicit\t10\nbeta\tcodex\twaiting\tlocal_explicit\t20\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#82aaff] alpha#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
+    $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
 
 run_available_width_does_not_evaluate_status_left_case() {
   local actual=""

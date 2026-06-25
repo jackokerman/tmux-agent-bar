@@ -92,10 +92,23 @@ tmux_session_status_truncation_indicator() {
   printf '%s\n' "#[fg=#7f8c98]…#[fg=default]"
 }
 
+tmux_session_status_append_render_item() {
+  local state="$1" formatted="$2"
+
+  case "${state}" in
+    waiting) TMUX_AGENT_BAR_WAITING_ITEMS+=("${formatted}") ;;
+    working) TMUX_AGENT_BAR_WORKING_ITEMS+=("${formatted}") ;;
+    done)    TMUX_AGENT_BAR_DONE_ITEMS+=("${formatted}") ;;
+    *)       TMUX_AGENT_BAR_OTHER_ITEMS+=("${formatted}") ;;
+  esac
+}
+
 tmux_session_status_render_records() {
   local current="$1" session="" _agent="" state="" _source="" _updated_at=""
   local output="" formatted="" rendered="" available_width="" contribution=0 total_width=0 hidden=0 indicator="" indicator_width=0 last_index=0
-  local -a accepted_items=() accepted_contributions=()
+  local -a accepted_items=() accepted_contributions=() candidate_items=()
+  local -a TMUX_AGENT_BAR_WAITING_ITEMS=() TMUX_AGENT_BAR_WORKING_ITEMS=()
+  local -a TMUX_AGENT_BAR_DONE_ITEMS=() TMUX_AGENT_BAR_OTHER_ITEMS=()
 
   available_width=$(tmux_session_status_right_available_width 2>/dev/null || true)
   indicator=$(tmux_session_status_truncation_indicator)
@@ -110,7 +123,17 @@ tmux_session_status_render_records() {
 
     rendered+="${session}"$'\n'
     formatted=$(tmux_session_status_format_session "${session}" "${state}")
+    tmux_session_status_append_render_item "${state}" "${formatted}"
+  done
 
+  candidate_items=(
+    "${TMUX_AGENT_BAR_WAITING_ITEMS[@]}"
+    "${TMUX_AGENT_BAR_WORKING_ITEMS[@]}"
+    "${TMUX_AGENT_BAR_DONE_ITEMS[@]}"
+    "${TMUX_AGENT_BAR_OTHER_ITEMS[@]}"
+  )
+
+  for formatted in "${candidate_items[@]}"; do
     if [[ "${available_width}" =~ ^[0-9]+$ ]]; then
       contribution=$(tmux_session_status_visible_width "${formatted}")
       if (( ${#accepted_items[@]} > 0 )); then
