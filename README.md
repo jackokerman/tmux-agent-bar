@@ -2,51 +2,37 @@
 
 Status-line-first agent status tracking for tmux sessions.
 
-`tmux-agent-bar` renders a compact tmux status segment for your other sessions
-so you can see which agent panes are working, waiting for input, or done without
-switching away from your current session. It is launcher-agnostic: hooks,
-local pane inspection, and optional source modules all write the same generic
-state records.
+`tmux-agent-bar` renders a compact tmux status segment for your other sessions so you can see which agent panes are working, waiting for input, or done without switching away from your current session. It is launcher-agnostic: hooks, local pane inspection, and optional source modules all write the same generic state records.
 
 ## What it does
 
 - Renders `working`, `waiting`, and `done` state for non-current tmux sessions.
-- Orders compact `status-right` output for right-to-left scanning: `waiting`
-  sessions sit at the right edge, `done` sessions come next, and `working`
-  sessions sit behind them. Within each state, older timestamped rows stay
-  ahead of newer rows.
+- Orders compact `status-right` output for right-to-left scanning: `waiting` sessions sit at the right edge, `done` sessions come next, and `working` sessions sit behind them. Within each state, older timestamped rows stay ahead of newer rows.
 - Tracks explicit state through `bin/tmux-agent-bar-hook`.
 - Includes built-in agent classifiers for `claude` and `codex`.
-- Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and
-  approval hook events.
+- Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and approval hook events.
 - Includes an optional `fzf` picker for switching to another agent session.
 - Preserves live pane-tail inference for prompt states that hooks do not expose.
-- Supports extra source modules, so local rows and remote rows share one
-  renderer.
-- Reads an optional remote cache without baking transport logic into the
-  runtime.
+- Supports extra source modules, so local rows and remote rows share one renderer.
+- Reads an optional remote cache without baking transport logic into the runtime.
 
 ## Quick start
 
-Clone, vendor, or otherwise place this repo wherever you want. Then point tmux
-at the renderer entrypoint:
+Clone, vendor, or otherwise place this repo wherever you want. Then point tmux at the renderer entrypoint:
 
 ```tmux
 set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}')"
 ```
 
-Pass `#{session_id}` so tmux treats each session as a distinct `#()` job result
-and the current-session filter stays in sync when you switch sessions.
+Pass `#{session_id}` so tmux treats each session as a distinct `#()` job result and the current-session filter stays in sync when you switch sessions.
 
-If you want shorter commands, add the repo `bin/` directory to your `PATH` or
-symlink the entrypoints you use into a directory that is already on your `PATH`.
+If you want shorter commands, add the repo `bin/` directory to your `PATH` or symlink the entrypoints you use into a directory that is already on your `PATH`.
 
 See [docs/install.md](docs/install.md) for the shorter install reference.
 
 ## Hook integration
 
-Use the generic hook entrypoint to write explicit state for the current tmux
-session:
+Use the generic hook entrypoint to write explicit state for the current tmux session:
 
 ```bash
 /path/to/tmux-agent-bar/bin/tmux-agent-bar-hook working codex
@@ -68,9 +54,7 @@ The Codex adapter maps:
 - `UserPromptSubmit`, `PreToolUse`, and `PostToolUse` to `working`
 - `SessionStart` and `Stop` to `done`
 
-Codex still needs live tail inference for in-turn question and plan
-confirmation prompts because those do not currently have a dedicated hook
-event.
+Codex still needs live tail inference for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
 
 ## CLI entrypoints
 
@@ -89,26 +73,17 @@ current-state [current-target]
 current-state-cached [current-target]
 ```
 
-Use `render-cached` or `current-state-cached` when the caller must avoid source
-refresh hooks. Use `current-state` when another tmux-side integration needs the
-current session's resolved state instead of the rendered multi-session segment.
+Use `render-cached` or `current-state-cached` when the caller must avoid source refresh hooks. Use `current-state` when another tmux-side integration needs the current session's resolved state instead of the rendered multi-session segment.
 
-The status renderer defaults to optimizing for right-to-left scanning from the
-right edge. Set `TMUX_AGENT_BAR_SCAN_DIRECTION=left-to-right` in the renderer
-environment to put the front of the same queue at the left edge instead.
+The status renderer defaults to optimizing for right-to-left scanning from the right edge. Set `TMUX_AGENT_BAR_SCAN_DIRECTION=left-to-right` in the renderer environment to put the front of the same queue at the left edge instead.
 
-`bin/tmux-agent-bar-picker` opens an optional `fzf` picker over the same
-prioritized session rows and switches to the selected tmux session:
+`bin/tmux-agent-bar-picker` opens an optional `fzf` picker over the same prioritized session rows and switches to the selected tmux session:
 
 ```bash
 /path/to/tmux-agent-bar/bin/tmux-agent-bar-picker
 ```
 
-The picker requires `fzf` and must run inside tmux. It refreshes sources when it
-opens, hides the current session, and keeps the original session label as the
-switch target. For path-like session names, the visible session column compacts
-to the trailing path component and adds parent context only when needed to
-disambiguate collisions.
+The picker requires `fzf` and must run inside tmux. It refreshes sources when it opens, hides the current session, and keeps the original session label as the switch target. For path-like session names, the visible session column compacts to the trailing path component and adds parent context only when needed to disambiguate collisions.
 
 Example tmux bindings:
 
@@ -144,13 +119,9 @@ ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt
 session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
 ```
 
-`shadowed-sessions.txt` is a newline-delimited list of tmux session labels that
-the local collector should suppress because another source already represents
-them. Only replacement sources should write this file; additive sources should
-emit rows directly and must not shadow local rows.
+`shadowed-sessions.txt` is a newline-delimited list of tmux session labels that the local collector should suppress because another source already represents them. Only replacement sources should write this file; additive sources should emit rows directly and must not shadow local rows.
 
-How those files get populated is intentionally left to user modules, overlays,
-or external scripts.
+How those files get populated is intentionally left to user modules, overlays, or external scripts.
 
 See [docs/sources.md](docs/sources.md) for the source contract.
 
@@ -163,11 +134,9 @@ Optional user-provided modules live under:
 ~/.config/tmux-agent-bar/sources/*.sh
 ```
 
-Agent modules register a command name and a tail classifier function. Source
-modules register a record emitter and, optionally, a refresh function.
+Agent modules register a command name and a tail classifier function. Source modules register a record emitter and, optionally, a refresh function.
 
-See [docs/agents.md](docs/agents.md) and [docs/sources.md](docs/sources.md) for
-the module contracts, including the explicit-state precedence model.
+See [docs/agents.md](docs/agents.md) and [docs/sources.md](docs/sources.md) for the module contracts, including the explicit-state precedence model.
 
 ## Repository layout
 
