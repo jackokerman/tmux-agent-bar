@@ -3,7 +3,7 @@ id: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 title: tmux-agent-bar session ordering and picker
 state: inbox
 createdAt: 2026-06-25T00:23:09.647Z
-updatedAt: 2026-06-25T00:23:09.647Z
+updatedAt: 2026-06-25T00:25:12.397Z
 ---
 
 # tmux-agent-bar session ordering and picker
