@@ -106,7 +106,9 @@ prioritized session rows and switches to the selected tmux session:
 
 The picker requires `fzf` and must run inside tmux. It refreshes sources when it
 opens, hides the current session, and keeps the original session label as the
-switch target.
+switch target. For path-like session names, the visible session column compacts
+to the trailing path component and adds parent context only when needed to
+disambiguate collisions.
 
 Example tmux bindings:
 

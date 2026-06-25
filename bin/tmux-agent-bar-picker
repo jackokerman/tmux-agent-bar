@@ -16,46 +16,111 @@ tmux_agent_bar_picker_require_interactive_deps() {
   command -v fzf >/dev/null 2>&1 || tmux_agent_bar_picker_die "fzf is required"
 }
 
-tmux_agent_bar_picker_age_label() {
-  local updated_at="$1" now="" elapsed=0
+tmux_agent_bar_picker_compact_rows() {
+  local now="$1"
 
-  [[ "${updated_at}" =~ ^[0-9]+$ ]] || {
-    printf '%s\n' "-"
-    return 0
-  }
-  (( updated_at > 0 )) || {
-    printf '%s\n' "-"
-    return 0
-  }
+  awk -F $'\t' -v OFS=$'\t' -v now="${now}" '
+    function compact_label(row_index,    start, j, label) {
+      if (!path_like[row_index]) {
+        return sessions[row_index]
+      }
 
-  now=$(date +%s)
-  elapsed=$(( now - updated_at ))
-  (( elapsed >= 0 )) || elapsed=0
+      start = segment_count[row_index] - depth[row_index] + 1
+      label = segments[row_index, start]
+      for (j = start + 1; j <= segment_count[row_index]; j++) {
+        label = label "/" segments[row_index, j]
+      }
 
-  if (( elapsed < 60 )); then
-    printf '%ss\n' "${elapsed}"
-  elif (( elapsed < 3600 )); then
-    printf '%sm\n' "$(( elapsed / 60 ))"
-  elif (( elapsed < 86400 )); then
-    printf '%sh\n' "$(( elapsed / 3600 ))"
-  else
-    printf '%sd\n' "$(( elapsed / 86400 ))"
-  fi
+      return label
+    }
+
+    function age_label(updated_at, elapsed) {
+      if (updated_at !~ /^[0-9]+$/ || updated_at <= 0) {
+        return "-"
+      }
+
+      elapsed = now - updated_at
+      if (elapsed < 0) {
+        elapsed = 0
+      }
+      if (elapsed < 60) {
+        return elapsed "s"
+      }
+      if (elapsed < 3600) {
+        return int(elapsed / 60) "m"
+      }
+      if (elapsed < 86400) {
+        return int(elapsed / 3600) "h"
+      }
+
+      return int(elapsed / 86400) "d"
+    }
+
+    {
+      if ($1 == "") {
+        next
+      }
+
+      row_count += 1
+      sessions[row_count] = $1
+      agents[row_count] = $2
+      states[row_count] = $3
+      sources[row_count] = $4
+      updated[row_count] = $5
+
+      segment_count[row_count] = split($1, parts, "/")
+      path_like[row_count] = index($1, "/") > 0 && segment_count[row_count] > 1
+      depth[row_count] = path_like[row_count] ? 1 : 0
+
+      for (i = 1; i <= segment_count[row_count]; i++) {
+        segments[row_count, i] = parts[i]
+      }
+
+      labels[row_count] = compact_label(row_count)
+    }
+
+    END {
+      while (1) {
+        for (label in label_counts) {
+          delete label_counts[label]
+        }
+
+        changed = 0
+        for (i = 1; i <= row_count; i++) {
+          label_counts[labels[i]] += 1
+        }
+        for (i = 1; i <= row_count; i++) {
+          if (label_counts[labels[i]] > 1 && path_like[i] && depth[i] < segment_count[i]) {
+            depth[i] += 1
+            labels[i] = compact_label(i)
+            changed = 1
+          }
+        }
+
+        if (!changed) {
+          break
+        }
+      }
+
+      for (i = 1; i <= row_count; i++) {
+        print sessions[i], states[i], labels[i], agents[i], sources[i], age_label(updated[i])
+      }
+    }
+  '
 }
 
 tmux_agent_bar_picker_emit_rows() {
-  local current_target="${1:-}" current="" session="" agent="" state="" source="" updated_at="" age=""
+  local current_target="${1:-}" current="" now=""
 
   current=$(tmux_session_status_current_session "${current_target}")
   if [[ -n "${current}" ]]; then
     tmux_agent_bar_maybe_refresh_sources
   fi
 
-  while IFS=$'\t' read -r session agent state source updated_at || [[ -n "${session:-}${agent:-}${state:-}${source:-}${updated_at:-}" ]]; do
-    [[ -n "${session}" ]] || continue
-    age=$(tmux_agent_bar_picker_age_label "${updated_at}")
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${session}" "${state}" "${session}" "${agent}" "${source}" "${age}"
-  done < <(tmux_agent_bar_emit_prioritized_records "${current}" | tmux_agent_bar_emit_scan_ordered_records)
+  now=$(date +%s)
+  tmux_agent_bar_emit_prioritized_records "${current}" |
+    tmux_agent_bar_emit_scan_ordered_records |
+    tmux_agent_bar_picker_compact_rows "${now}"
 }
 
 tmux_agent_bar_picker_rows_command() {

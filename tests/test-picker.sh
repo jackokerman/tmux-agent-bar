@@ -139,3 +139,64 @@ EOF
 }
 
 run_switch_selection_case
+
+run_rows_compact_display_labels_case() {
+  local tmp_dir="" actual=""
+
+  tmp_dir=$(mktemp -d)
+  mkdir -p "${tmp_dir}/bin" "${tmp_dir}/config/tmux-agent-bar/sources"
+
+  cat > "${tmp_dir}/bin/date" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "+%s" ]]; then
+  printf '%s\n' "1700000000"
+  exit 0
+fi
+
+exit 1
+EOF
+  chmod +x "${tmp_dir}/bin/date"
+
+  cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+exit 1
+EOF
+  chmod +x "${tmp_dir}/bin/tmux"
+
+  cat > "${tmp_dir}/config/tmux-agent-bar/sources/test.sh" <<'EOF'
+#!/usr/bin/env bash
+
+tmux_agent_bar_test_emit_records() {
+  local now=""
+
+  now=$(date +%s)
+  printf '%s\n' $'remote/src/project\tcodex\twaiting\ttest_source\t'"$(( now - 180 ))"
+  printf '%s\n' $'other/src/project\tcodex\twaiting\ttest_source\t'"$(( now - 120 ))"
+  printf '%s\n' $'local/project\tcodex\twaiting\ttest_source\t'"$(( now - 60 ))"
+  printf '%s\n' $'project\tcodex\twaiting\ttest_source\t'"$(( now - 30 ))"
+  printf '%s\n' $'current\tcodex\tworking\ttest_source\t30'
+}
+
+tmux_agent_register_source "test" "tmux_agent_bar_test_emit_records"
+EOF
+
+  actual=$(
+    HOME="${tmp_dir}/home" \
+    PATH="${tmp_dir}/bin:/usr/bin:/bin" \
+    XDG_CONFIG_HOME="${tmp_dir}/config" \
+    "${BASH}" "${TARGET_SCRIPT}" --rows current
+  )
+
+  assert_equal \
+    "picker compacts path-like labels and expands parents only to disambiguate" \
+    $'remote/src/project\twaiting\tremote/src/project\tcodex\ttest_source\t3m\nother/src/project\twaiting\tother/src/project\tcodex\ttest_source\t2m\nlocal/project\twaiting\tlocal/project\tcodex\ttest_source\t1m\nproject\twaiting\tproject\tcodex\ttest_source\t30s' \
+    "${actual}"
+
+  rm -rf "${tmp_dir}"
+}
+
+run_rows_compact_display_labels_case
