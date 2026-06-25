@@ -142,6 +142,12 @@ EOF
 }
 
 run_render_case \
+    "renderer stays empty for empty input under nounset" \
+    "80" \
+    "" \
+    ""
+
+run_render_case \
     "renderer uses the full available width before showing an ellipsis" \
     "19" \
     $'alpha\tcodex\tworking\tlocal_explicit\t10\nbeta\tcodex\twaiting\tlocal_explicit\t20\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \

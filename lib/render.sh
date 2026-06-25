@@ -126,33 +126,49 @@ tmux_session_status_render_records() {
     tmux_session_status_append_render_item "${state}" "${formatted}"
   done
 
-  candidate_items=(
-    "${TMUX_AGENT_BAR_WAITING_ITEMS[@]}"
-    "${TMUX_AGENT_BAR_WORKING_ITEMS[@]}"
-    "${TMUX_AGENT_BAR_DONE_ITEMS[@]}"
-    "${TMUX_AGENT_BAR_OTHER_ITEMS[@]}"
-  )
+  if (( ${#TMUX_AGENT_BAR_WAITING_ITEMS[@]} > 0 )); then
+    for formatted in "${TMUX_AGENT_BAR_WAITING_ITEMS[@]}"; do
+      candidate_items+=("${formatted}")
+    done
+  fi
+  if (( ${#TMUX_AGENT_BAR_WORKING_ITEMS[@]} > 0 )); then
+    for formatted in "${TMUX_AGENT_BAR_WORKING_ITEMS[@]}"; do
+      candidate_items+=("${formatted}")
+    done
+  fi
+  if (( ${#TMUX_AGENT_BAR_DONE_ITEMS[@]} > 0 )); then
+    for formatted in "${TMUX_AGENT_BAR_DONE_ITEMS[@]}"; do
+      candidate_items+=("${formatted}")
+    done
+  fi
+  if (( ${#TMUX_AGENT_BAR_OTHER_ITEMS[@]} > 0 )); then
+    for formatted in "${TMUX_AGENT_BAR_OTHER_ITEMS[@]}"; do
+      candidate_items+=("${formatted}")
+    done
+  fi
 
-  for formatted in "${candidate_items[@]}"; do
-    if [[ "${available_width}" =~ ^[0-9]+$ ]]; then
-      contribution=$(tmux_session_status_visible_width "${formatted}")
-      if (( ${#accepted_items[@]} > 0 )); then
-        contribution=$(( contribution + 2 ))
-      fi
+  if (( ${#candidate_items[@]} > 0 )); then
+    for formatted in "${candidate_items[@]}"; do
+      if [[ "${available_width}" =~ ^[0-9]+$ ]]; then
+        contribution=$(tmux_session_status_visible_width "${formatted}")
+        if (( ${#accepted_items[@]} > 0 )); then
+          contribution=$(( contribution + 2 ))
+        fi
 
-      if (( total_width + contribution + 1 > available_width )); then
-        hidden=$(( hidden + 1 ))
+        if (( total_width + contribution + 1 > available_width )); then
+          hidden=$(( hidden + 1 ))
+          continue
+        fi
+
+        accepted_items+=("${formatted}")
+        accepted_contributions+=("${contribution}")
+        total_width=$(( total_width + contribution ))
         continue
       fi
 
       accepted_items+=("${formatted}")
-      accepted_contributions+=("${contribution}")
-      total_width=$(( total_width + contribution ))
-      continue
-    fi
-
-    accepted_items+=("${formatted}")
-  done
+    done
+  fi
 
   if [[ "${available_width}" =~ ^[0-9]+$ ]] && (( hidden > 0 )); then
     indicator_width=$(tmux_session_status_visible_width "${indicator}")
