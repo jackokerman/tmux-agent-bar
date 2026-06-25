@@ -150,14 +150,101 @@ run_render_case \
 run_render_case \
     "renderer uses the full available width before showing an ellipsis" \
     "19" \
-    $'alpha\tcodex\tworking\tlocal_explicit\t10\nbeta\tcodex\twaiting\tlocal_explicit\t20\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
+    $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
     $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
 
 run_render_case \
     "renderer drops the last visible item when it needs room for the ellipsis" \
     "17" \
-    $'alpha\tcodex\tworking\tlocal_explicit\t10\nbeta\tcodex\twaiting\tlocal_explicit\t20\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
+    $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
     $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
+
+run_prioritized_records_case() {
+  local actual=""
+
+  actual=$(
+    TARGET_SCRIPT="${TARGET_SCRIPT}" \
+    "${BASH}" <<'EOF'
+set -euo pipefail
+
+source "${TARGET_SCRIPT}"
+
+tmux_agent_bar_emit_registered_records() {
+  local current="$1"
+
+  if [[ "${current}" != "current" ]]; then
+    printf 'unexpected current session: %s\n' "${current}" >&2
+    exit 1
+  fi
+
+  printf '%s\n' $'done-a\tcodex\tdone\tlocal_explicit\t10'
+  printf '%s\n' $'working-a\tcodex\tworking\tlocal_explicit\t20'
+  printf '%s\n' $'waiting-a\tcodex\twaiting\tlocal_explicit\t30'
+  printf '%s\n' $'working-a\tcodex\twaiting\tremote_cache\t40'
+  printf '%s\n' $'other-a\tcodex\tpaused\tcustom\t50'
+  printf '%s\n' $'current\tcodex\twaiting\tlocal_explicit\t60'
+}
+
+tmux_agent_bar_emit_prioritized_records "current"
+EOF
+  )
+
+  assert_equal \
+    "shared record helper keeps first-row precedence and prioritizes states" \
+    $'waiting-a\tcodex\twaiting\tlocal_explicit\t30\nworking-a\tcodex\tworking\tlocal_explicit\t20\ndone-a\tcodex\tdone\tlocal_explicit\t10\nother-a\tcodex\tpaused\tcustom\t50' \
+    "${actual}"
+}
+
+run_prioritized_records_case
+
+run_current_record_uses_unfiltered_records_case() {
+  local tmp_dir="" actual=""
+
+  tmp_dir=$(mktemp -d)
+
+  actual=$(
+    CURRENT_SESSION="current" \
+    XDG_CONFIG_HOME="${tmp_dir}/config" \
+    TARGET_SCRIPT="${TARGET_SCRIPT}" \
+    "${BASH}" <<'EOF'
+set -euo pipefail
+
+source "${TARGET_SCRIPT}"
+
+tmux_session_status_current_session() {
+  printf '%s\n' "${CURRENT_SESSION}"
+}
+
+tmux_agent_bar_maybe_refresh_sources() {
+  :
+}
+
+tmux_agent_bar_emit_registered_records() {
+  local current="$1"
+
+  if [[ -n "${current}" ]]; then
+    printf 'current record unexpectedly filtered sources with: %s\n' "${current}" >&2
+    exit 1
+  fi
+
+  printf '%s\n' $'other\tcodex\twaiting\tlocal_explicit\t10'
+  printf '%s\n' $'current\tcodex\tdone\tlocal_explicit\t20'
+  printf '%s\n' $'current\tcodex\twaiting\tremote_cache\t30'
+}
+
+tmux_session_status_current_state
+EOF
+  )
+
+  assert_equal \
+    "current state uses the first unfiltered matching record" \
+    "done" \
+    "${actual}"
+
+  rm -rf "${tmp_dir}"
+}
+
+run_current_record_uses_unfiltered_records_case
 
 run_available_width_does_not_evaluate_status_left_case() {
   local actual=""

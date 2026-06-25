@@ -12,6 +12,8 @@ source "${TMUX_AGENT_BAR_REPO_DIR}/lib/registry.sh"
 # shellcheck source=/dev/null
 source "${TMUX_AGENT_BAR_REPO_DIR}/lib/reconcile.sh"
 # shellcheck source=/dev/null
+source "${TMUX_AGENT_BAR_REPO_DIR}/lib/records.sh"
+# shellcheck source=/dev/null
 source "${TMUX_AGENT_BAR_REPO_DIR}/lib/render.sh"
 # shellcheck source=/dev/null
 source "${TMUX_AGENT_BAR_REPO_DIR}/lib/tail.sh"
@@ -38,7 +40,7 @@ tmux_session_status_render_main() {
   if [[ "${refresh_mode}" != "cached" ]]; then
     tmux_agent_bar_maybe_refresh_sources
   fi
-  tmux_agent_bar_emit_registered_records "${current}" | tmux_session_status_render_records "${current}"
+  tmux_agent_bar_emit_prioritized_records "${current}" | tmux_session_status_render_records "${current}"
   if [[ "${refresh_mode}" != "cached" ]]; then
     tmux_session_status_prune_orphan_state_files
   fi
@@ -69,7 +71,7 @@ tmux_session_status_current_record() {
 
     printf '%s\t%s\t%s\t%s\t%s\n' "${session}" "${agent}" "${state}" "${source}" "${updated_at}"
     return 0
-  done < <(tmux_agent_bar_emit_registered_records "")
+  done < <(tmux_agent_bar_emit_prioritized_records "${current}" "0" "")
 }
 
 tmux_session_status_current_state() {

@@ -1,9 +1,9 @@
 ---
 id: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 title: tmux-agent-bar session ordering and picker
-state: inbox
+state: ready-to-ship
 createdAt: 2026-06-25T00:23:09.647Z
-updatedAt: 2026-06-25T00:29:45.470Z
+updatedAt: 2026-06-25T17:17:43.077Z
 ---
 
 # tmux-agent-bar session ordering and picker
@@ -13,72 +13,157 @@ updatedAt: 2026-06-25T00:29:45.470Z
 # tmux-agent-bar session ordering and picker
 
 ## Goal
-Make multiple agent sessions easier to scan and triage from tmux.
+Make multiple agent sessions easier to scan and triage from tmux without adding background daemons, workflow-specific coupling, or hot-path render cost.
 
-## Current behavior
-`tmux-agent-bar` renders records from registered sources, filters the current session, keeps the first row per label, and truncates to the available status width.
+## Investigation summary
+The current runtime shape is a good fit for a picker if the first version stays session-level and consumes the existing normalized row stream.
 
-The compact renderer now has an explicit state priority before truncation:
+Confirmed from the repo:
 
-1. `waiting`
-2. `working`
-3. `done`
-4. unknown non-empty states
+- `bin/tmux-agent-bar` is still small and mostly composes shared shell helpers.
+- Sources already emit normalized five-column rows: `session<TAB>agent<TAB>state<TAB>source<TAB>updated_at`.
+- Recent churn has been narrow: state reconciliation, render ordering, and nounset-safe truncation. There is not broader CLI or source-contract churn right now.
+- The current renderer and `current-state` path duplicate some row traversal logic, so a shared prioritized-record helper would reduce drift.
+- Session labels are already valid tmux switch targets for the current public data model, so the first picker does not need a schema change to support selection.
 
-Within each state, rows preserve source order. Source collection, duplicate precedence, and current-session filtering are unchanged.
+Constraints that should continue to hold:
 
-## Inspiration review
-Reviewed `https://github.com/samleeney/tmux-agent-status` at commit `037af05`. Useful ideas for this repo:
+- The checked-in runtime stays bounded and launcher-agnostic.
+- No always-on polling loop or background refresh daemon.
+- No workflow-specific concepts such as deploys, devboxes, or sesh baked into the public repo.
+- No destructive picker actions in the first version.
 
-- A tmux popup `fzf` switcher is a good complement to a compact status line.
-- A fallback `new-window` display mode is useful for tmux versions or terminals where popups are weak.
-- Rows should carry an explicit target token so `Enter` can switch to a session/window/pane without fragile display parsing.
-- A preview pane showing recent tmux pane output is likely the highest-value extra detail.
-- Manual refresh with `ctrl-r` should exist. Auto-refresh can be considered later, but should not add a daemon or polling loop to the hot status path.
-- A future picker can support richer modes, but the first version should stay flat and session-oriented because this repo currently tracks session-level records.
+## Recommendation
+Pick this up now, but narrow the first implementation.
 
-Ideas to avoid or defer from that project:
+The repo does not need a long cool-down period before a picker, because the recent churn has been concentrated in the same session-row pipeline the picker should reuse. The risk is not that the surface is too unstable; the risk is scope creep. A thin first version is the right tradeoff.
 
-- Do not add an always-on sidebar daemon to the core runtime.
-- Do not add workflow-specific deploy, remote setup, or launcher concepts to checked-in sources.
-- Do not make destructive actions such as close/kill part of the first picker version.
-- Do not hard-depend on Sesh. Provide a generic command and documented tmux binding; Sesh or private picker integrations can compose with that command externally.
+Recommended first cut:
 
-## Picker proposal
-Add an optional picker command that reads the same registered records as the renderer and presents richer rows in `fzf`.
+- Add an optional `bin/tmux-agent-bar-picker` executable rather than growing `bin/tmux-agent-bar` subcommand dispatch further.
+- Keep the picker flat and session-oriented.
+- Reuse the same state priority and duplicate precedence as the status bar.
+- Make `fzf` an optional runtime dependency of the picker only. The existing render path should keep working without it.
+- Document tmux popup and `new-window` bindings as integration examples instead of baking popup orchestration deeply into the runtime.
+- Defer preview panes and any pane/window-level navigation until the basic session switcher proves useful.
 
-Initial scope:
+## Why this scope
+This narrower shape keeps churn local to shared row listing plus one new executable.
 
-- Add a command such as `bin/tmux-agent-bar-picker` or a `picker` subcommand on `bin/tmux-agent-bar`.
-- Support `tmux display-popup` when available, plus a simple `new-window` fallback.
-- Provide a documented tmux binding example, with a configurable key left to the user. Candidate binding: `prefix + S` if not already used locally.
-- Keep the command composable so a Sesh picker or private workflow can call it instead of this repo knowing about Sesh.
-- Show flat session rows sorted with the same actionable priority as the status bar.
-- Include at least: state, session label, agent, source, and updated age when available.
-- Use a hidden machine-readable target field rather than parsing formatted display text.
-- `Enter` switches to the selected tmux session.
-- `ctrl-r` refreshes the row list.
-- Optional preview: show recent pane output for the selected session with `tmux capture-pane`, bounded to a small number of lines.
+It avoids three avoidable risks in the same change:
 
-Deferred picker ideas:
+- adding a new row schema before it is needed
+- coupling the runtime to tmux popup behavior too deeply
+- taking on interactive preview performance questions before the basic picker exists
 
-- Toggle between a flat agent-session list and a tree/list of session, window, and pane targets if the repo grows pane-level records.
-- Add a `next actionable` command that follows the same ordering as the picker.
-- Add wait/snooze or park/hide concepts only if there is a clear user-facing need and a generic state contract. These should not be implemented as private workflow assumptions.
-- Add close/kill actions only with confirmation and tests, if ever.
-- Consider aggregate summary mode for very large session counts, but do not replace the current per-session compact bar unless truncation remains painful after the picker exists.
+## Proposed implementation plan
 
-## Implementation notes
+### Phase 1: shared prioritized record listing
+Add a shared helper, likely in a new `lib/records.sh`, that emits the same deduped, prioritized session rows for both the compact renderer and the picker.
 
-- Preserve bounded status rendering. Do not introduce polling loops, unbounded process scans, or slow work in render truncation.
-- Keep the public repo generic, launcher-agnostic, and environment-agnostic.
-- Prefer a shared record-listing/sorting helper so the compact renderer and picker do not diverge.
-- Add focused regression tests for row sorting, target parsing, tmux switching command construction, and binding docs/examples.
-- Keep Sesh integration as documentation or an external/private module unless there is a generic, dependency-free interface to expose.
+Responsibilities:
 
-## Open questions
+- optionally refresh sources
+- resolve the current session target when needed
+- filter the current session when desired
+- keep first-row-wins duplicate precedence
+- sort by current actionable priority: `waiting`, `working`, `done`, then other non-empty states
+- preserve source order within each state bucket
 
-- Should the picker live as a `picker` subcommand or as a separate executable?
-- Should tie-breaking within a state remain source order, or should the picker use a secondary sort such as label or `updated_at`?
-- Should `done` sessions remain visible in the compact bar indefinitely, or should older `done` rows be primarily discoverable through the picker?
-- What tmux binding should the public example recommend without conflicting with common user setups?
+Expected outcome:
+
+- renderer consumes the helper instead of reimplementing ordering logic
+- picker can consume the exact same ordered rows
+- focused regression tests cover ordering and duplicate precedence at the shared helper boundary
+
+### Phase 2: picker executable
+Add `bin/tmux-agent-bar-picker` as an opt-in interactive command.
+
+Recommended behavior:
+
+- fail clearly with a short message if `fzf` is unavailable
+- gather prioritized rows using the shared helper
+- display a human-readable table with at least `state`, `session`, `agent`, `source`, and age when `updated_at` is numeric
+- keep a hidden machine-readable target column; for v1 this can just be the tmux session label
+- on selection, run `tmux switch-client -t <session>`
+- support a simple `ctrl-r` reload using `fzf --bind ...reload(...)`
+
+Non-goals for v1:
+
+- no kill/close actions
+- no pane/window tree mode
+- no background watcher or auto-refresh loop
+
+### Phase 3: tmux integration docs
+Document two example integrations instead of hard-coding them into the picker runtime:
+
+- popup example for tmux versions that support `display-popup`
+- `new-window` fallback example for terminals or tmux setups where popup use is weak
+
+This keeps the executable composable and lets private setups wrap it however they want.
+
+### Deferred follow-up
+If the basic picker proves useful, add a second pass for optional preview content sourced from `tmux capture-pane`, bounded to a small line count and tested separately.
+
+## Open decisions and recommended defaults
+
+### Executable shape
+Recommendation: separate executable.
+
+Reason:
+
+- interactive picker semantics and optional `fzf` dependency are distinct from the render CLI
+- keeps `bin/tmux-agent-bar` stable for status-line callers
+- lowers review risk by isolating the new behavior
+
+### Secondary sort within a state
+Recommendation: preserve source order for v1.
+
+Reason:
+
+- matches the current status bar exactly
+- avoids surprising reordering across sources
+- keeps the picker as a richer view of the same pipeline rather than a different prioritizer
+
+### Handling `done` rows
+Recommendation: keep current bar behavior unchanged for now.
+
+Reason:
+
+- the recent ordering change already made actionable states win before truncation
+- hiding older `done` rows is a separate product decision and should not be bundled into picker delivery
+
+### Public tmux binding example
+Recommendation: document examples but do not bless a single default key yet.
+
+Reason:
+
+- the repo stays generic
+- tmux key conflicts are personal and environment-specific
+- users can copy the example and choose their own binding
+
+## Gaps to resolve before implementation
+These are small and should be resolved in code or docs, not by delaying the work indefinitely.
+
+- Confirm the minimum acceptable behavior when `fzf` is missing: recommended answer is clear non-zero exit with one-line install/use message.
+- Decide whether age formatting belongs in the picker executable or a tiny shared helper. Keep it local unless a second caller appears.
+- Decide whether `ctrl-r` reload should re-run source refresh hooks or use cached rows. Recommended answer: refresh, because the picker is interactive and off the hot path.
+- Decide whether the picker should no-op outside tmux or fail clearly. Recommended answer: fail clearly, because switching sessions without tmux is not meaningful.
+
+## Verification plan
+Keep verification focused and non-interactive.
+
+- Add shell tests for the shared prioritized-row helper.
+- Add shell tests for picker row formatting and target extraction with mocked `fzf` and mocked `tmux`.
+- Add docs/examples coverage through existing repo checks plus any focused assertions needed for new snippets.
+- Run `./scripts/check` before shipping.
+
+## Ship criteria
+This plan is ready to implement when the first cut is limited to:
+
+- shared prioritized row helper
+- optional `fzf` picker executable
+- tmux binding documentation/examples
+- no preview pane
+- no new source schema
+- no destructive actions

@@ -1,1 +1,3 @@
 set -g status-right "#(/path/to/tmux-agent-bar/bin/tmux-agent-bar '#{session_id}')"
+bind-key A display-popup -E "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"
+bind-key a new-window "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"

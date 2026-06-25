@@ -15,6 +15,7 @@ state records.
 - Includes built-in agent classifiers for `claude` and `codex`.
 - Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and
   approval hook events.
+- Includes an optional `fzf` picker for switching to another agent session.
 - Preserves live pane-tail inference for prompt states that hooks do not expose.
 - Supports extra source modules, so local rows and remote rows share one
   renderer.
@@ -87,6 +88,24 @@ current-state-cached [current-target]
 Use `render-cached` or `current-state-cached` when the caller must avoid source
 refresh hooks. Use `current-state` when another tmux-side integration needs the
 current session's resolved state instead of the rendered multi-session segment.
+
+`bin/tmux-agent-bar-picker` opens an optional `fzf` picker over the same
+prioritized session rows and switches to the selected tmux session:
+
+```bash
+/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker
+```
+
+The picker requires `fzf` and must run inside tmux. It refreshes sources when it
+opens, hides the current session, and keeps the original session label as the
+switch target.
+
+Example tmux bindings:
+
+```tmux
+bind-key A display-popup -E "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"
+bind-key a new-window "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"
+```
 
 ## State and cache files
 

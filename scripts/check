@@ -7,9 +7,11 @@ PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 run_bash_syntax() {
   local -a files=(
     "bin/tmux-agent-bar"
+    "bin/tmux-agent-bar-picker"
     "bin/tmux-agent-bar-hook"
     "bin/tmux-agent-bar-codex-hook"
     "lib/local-collector.sh"
+    "lib/records.sh"
     "lib/reconcile.sh"
     "lib/registry.sh"
     "lib/render.sh"
@@ -23,6 +25,7 @@ run_bash_syntax() {
     "scripts/check-public-history"
     "compat/legacy-overlay.sh"
     "tests/test-pane-state.sh"
+    "tests/test-picker.sh"
     "tests/test-current-state.sh"
     "tests/test-hooks.sh"
     "tests/test-remote-cache.sh"
@@ -38,6 +41,7 @@ run_bash_syntax() {
 
 run_tests() {
   "${PROJECT_ROOT}/tests/test-pane-state.sh"
+  "${PROJECT_ROOT}/tests/test-picker.sh"
   "${PROJECT_ROOT}/tests/test-current-state.sh"
   "${PROJECT_ROOT}/tests/test-hooks.sh"
   "${PROJECT_ROOT}/tests/test-remote-cache.sh"

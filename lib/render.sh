@@ -92,23 +92,10 @@ tmux_session_status_truncation_indicator() {
   printf '%s\n' "#[fg=#7f8c98]…#[fg=default]"
 }
 
-tmux_session_status_append_render_item() {
-  local state="$1" formatted="$2"
-
-  case "${state}" in
-    waiting) TMUX_AGENT_BAR_WAITING_ITEMS+=("${formatted}") ;;
-    working) TMUX_AGENT_BAR_WORKING_ITEMS+=("${formatted}") ;;
-    done)    TMUX_AGENT_BAR_DONE_ITEMS+=("${formatted}") ;;
-    *)       TMUX_AGENT_BAR_OTHER_ITEMS+=("${formatted}") ;;
-  esac
-}
-
 tmux_session_status_render_records() {
   local current="$1" session="" _agent="" state="" _source="" _updated_at=""
   local output="" formatted="" rendered="" available_width="" contribution=0 total_width=0 hidden=0 indicator="" indicator_width=0 last_index=0
   local -a accepted_items=() accepted_contributions=() candidate_items=()
-  local -a TMUX_AGENT_BAR_WAITING_ITEMS=() TMUX_AGENT_BAR_WORKING_ITEMS=()
-  local -a TMUX_AGENT_BAR_DONE_ITEMS=() TMUX_AGENT_BAR_OTHER_ITEMS=()
 
   available_width=$(tmux_session_status_right_available_width 2>/dev/null || true)
   indicator=$(tmux_session_status_truncation_indicator)
@@ -123,29 +110,8 @@ tmux_session_status_render_records() {
 
     rendered+="${session}"$'\n'
     formatted=$(tmux_session_status_format_session "${session}" "${state}")
-    tmux_session_status_append_render_item "${state}" "${formatted}"
+    candidate_items+=("${formatted}")
   done
-
-  if (( ${#TMUX_AGENT_BAR_WAITING_ITEMS[@]} > 0 )); then
-    for formatted in "${TMUX_AGENT_BAR_WAITING_ITEMS[@]}"; do
-      candidate_items+=("${formatted}")
-    done
-  fi
-  if (( ${#TMUX_AGENT_BAR_WORKING_ITEMS[@]} > 0 )); then
-    for formatted in "${TMUX_AGENT_BAR_WORKING_ITEMS[@]}"; do
-      candidate_items+=("${formatted}")
-    done
-  fi
-  if (( ${#TMUX_AGENT_BAR_DONE_ITEMS[@]} > 0 )); then
-    for formatted in "${TMUX_AGENT_BAR_DONE_ITEMS[@]}"; do
-      candidate_items+=("${formatted}")
-    done
-  fi
-  if (( ${#TMUX_AGENT_BAR_OTHER_ITEMS[@]} > 0 )); then
-    for formatted in "${TMUX_AGENT_BAR_OTHER_ITEMS[@]}"; do
-      candidate_items+=("${formatted}")
-    done
-  fi
 
   if (( ${#candidate_items[@]} > 0 )); then
     for formatted in "${candidate_items[@]}"; do
