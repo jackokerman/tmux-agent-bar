@@ -1,9 +1,9 @@
 ---
 id: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 title: tmux-agent-bar session ordering and picker
-state: ready-to-ship
+state: complete
 createdAt: 2026-06-25T00:23:09.647Z
-updatedAt: 2026-06-25T17:17:43.077Z
+updatedAt: 2026-06-25T17:19:38.079Z
 ---
 
 Implemented the first-cut session picker plan.
