@@ -148,16 +148,28 @@ run_render_case \
     ""
 
 run_render_case \
+    "renderer orders compact status for right-to-left scanning" \
+    "80" \
+    $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t10\ndone-late\tcodex\tdone\tlocal_explicit\t20\n' \
+    $'#[fg=#82aaff] working-a#[fg=default]  #[fg=#21c7a8] done-late#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#e3d18a] waiting-a#[fg=default] '
+
+run_render_case \
+    "renderer moves recovered working rows behind done and waiting rows" \
+    "80" \
+    $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nrecovered-a\tcodex\tworking\tlocal_explicit\t50\ndone-a\tcodex\tdone\tlocal_explicit\t30\n' \
+    $'#[fg=#82aaff] recovered-a#[fg=default]  #[fg=#21c7a8] done-a#[fg=default]  #[fg=#e3d18a] waiting-a#[fg=default] '
+
+run_render_case \
     "renderer uses the full available width before showing an ellipsis" \
     "19" \
     $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
+    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#e3d18a] beta#[fg=default] '
 
 run_render_case \
-    "renderer drops the last visible item when it needs room for the ellipsis" \
+    "renderer preserves waiting at the right edge when it needs room for the ellipsis" \
     "17" \
     $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#e3d18a] beta#[fg=default]  #[fg=#7f8c98]…#[fg=default] '
+    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#e3d18a] beta#[fg=default] '
 
 run_prioritized_records_case() {
   local actual=""

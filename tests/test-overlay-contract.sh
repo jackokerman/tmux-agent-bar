@@ -68,7 +68,7 @@ EOF
 
 run_case \
   "overlay records render and local records win on duplicate labels" \
-  $'#[fg=#e3d18a] shared#[fg=default]  #[fg=#82aaff] local-only#[fg=default]  #[fg=#21c7a8] overlay-only#[fg=default] ' \
+  $'#[fg=#82aaff] local-only#[fg=default]  #[fg=#21c7a8] overlay-only#[fg=default]  #[fg=#e3d18a] shared#[fg=default] ' \
   $'local-only\tcodex\tworking\tlocal_explicit\t10\nshared\tcodex\twaiting\tlocal_explicit\t20\ncurrent\tcodex\tworking\tlocal_explicit\t30\n' \
   $'tmux_agent_overlay_maybe_refresh() {\n  : > "${OVERLAY_MARKER}"\n}\n\ntmux_agent_overlay_emit_records() {\n  printf \'shared\\tcodex\\tdone\\tremote_mirror\\t40\\n\'\n  printf \'overlay-only\\tclaude\\tdone\\tremote_mirror\\t50\\n\'\n}\n' \
   "1"

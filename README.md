@@ -11,6 +11,9 @@ state records.
 ## What it does
 
 - Renders `working`, `waiting`, and `done` state for non-current tmux sessions.
+- Orders compact `status-right` output for right-to-left scanning: `waiting`
+  sessions sit at the right edge, `done` sessions come next, and `working`
+  sessions sit behind them.
 - Tracks explicit state through `bin/tmux-agent-bar-hook`.
 - Includes built-in agent classifiers for `claude` and `codex`.
 - Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and
