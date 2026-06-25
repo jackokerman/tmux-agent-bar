@@ -2,8 +2,9 @@
 id: 2026-06-25-tmux-agent-bar-right-to-left-stable-status-ordering
 title: tmux-agent-bar right-to-left stable status ordering
 state: inbox
+priority: high
 createdAt: 2026-06-25T01:22:19.265Z
-updatedAt: 2026-06-25T01:22:33.390Z
+updatedAt: 2026-06-25T17:23:05.947Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 sourceRepo: /Users/jackokerman/tmux-agent-bar
 sourcePath: .
@@ -13,43 +14,78 @@ sourcePath: .
 
 ## Plan
 
+# tmux-agent-bar right-to-left stable status ordering
+
 ## Goal
-Make the compact status bar easier to scan for users who read agent status from right to left.
+Make the compact status bar match a right-to-left scanning workflow.
 
-When an agent finishes working, it should not be appended to the far right of the status segment just because its state changed. The user should be able to scan the visible items in a predictable order instead of having completed sessions appear at the right edge and disrupt the reading flow.
+The current shipped ordering prioritizes states for collection/truncation, but the visual order is still not right for a user who reads the status segment from the right edge inward.
 
-## Context
-The current renderer groups rows by actionable state priority before truncation:
+## Current shipped behavior
+`lib/records.sh` emits prioritized rows in this order:
 
 1. `waiting`
 2. `working`
 3. `done`
 4. other non-empty states
 
-That prioritizes actionable sessions, but it can also move a session between buckets when its state changes. For a right-to-left reader, a session transitioning from `working` to `done` may effectively jump to the far side of the segment, which makes the bar feel noisy.
+`lib/render.sh` formats records in the order it receives them. In a typical `status-right` placement, the later rendered items are closer to the far right edge. That means the shipped picker/session-row work gives actionable rows priority, but it does not guarantee that yellow waiting items sit at the immediate right edge.
 
-## Desired behavior
-Preserve actionable prioritization without causing newly completed sessions to appear as the newest/rightmost item.
+Within each state bucket, rows currently preserve source order. There is no durable last-state memory and no explicit completion ordering beyond whatever `updated_at` source rows already carry.
 
-Potential directions:
+## Clarified desired behavior
+For the compact status bar, optimize visual scan order from right to left:
 
-- Treat the right edge as the oldest or least-surprising side, not the place where newly completed work lands.
-- Keep state priority for truncation, but consider rendering accepted items in an order that is stable for right-to-left scanning.
-- Consider whether `done` rows should stay in their prior relative position for a short time or sort behind still-actionable rows without appending at the far right.
-- Avoid adding background polling or persistent ordering state unless the behavior cannot be achieved from existing records.
+1. Yellow `waiting` sessions that require input should be at the immediate right edge.
+2. Green `done` sessions should be next, ordered so the tasks that wrapped up earliest are encountered first while scanning right to left.
+3. Blue `working` sessions are background work and should sit behind waiting/done items in the right-to-left scan.
+4. If a session moves from green or yellow back to blue `working`, it should move toward the back of the blue section rather than staying in the urgent/right-edge area.
+
+In other words, keep `waiting` as the most urgent state, but separate two concepts:
+
+- truncation priority: which records survive when width is constrained
+- visual scan order: where accepted records appear in the rendered status string
+
+## Recommended implementation direction
+Keep the existing shared priority helper as the truncation/input priority source, but add a status-bar-specific visual ordering step before final output.
+
+Recommended default visual order for right-to-left status rendering:
+
+- left-to-right render string: `working`, then `done`, then `waiting`
+- right-to-left scan result: `waiting`, then `done`, then `working`
+
+Do not apply this blindly to the picker unless there is a clear reason. The picker can stay priority-list oriented because it is not constrained by the physical right edge in the same way.
+
+## Completion ordering
+For green `done` rows, prefer an existing timestamp over adding persistent ordering state.
+
+Candidate rule:
+
+- For `done` rows with numeric `updated_at`, sort ascending by `updated_at` within the done section, so the earliest completed item is closest to the right edge among done items when rendered with the status visual order.
+- Rows without numeric `updated_at` keep source order after timestamped rows, unless tests reveal a better fallback.
+
+This should be verified against local explicit rows, where `updated_at` comes from the state file mtime, and remote cache rows, where the source controls `updated_at`.
+
+## Configurability
+Default to the right-to-left visual order. A configuration knob can be considered, but it is optional and should not be added unless the implementation is still simple.
+
+If added, keep it generic and small, for example an environment/config variable that selects status visual order only. Avoid introducing launcher-specific config or a broader preference system.
 
 ## Constraints
 - Preserve bounded status rendering and avoid slow work in the hot path.
 - Keep source order and duplicate precedence understandable.
 - Do not add launcher-specific assumptions.
-- Add focused tests for ordering changes, especially state transitions and width truncation.
+- Avoid background polling or persistent ordering state unless existing timestamps are insufficient.
+- Add focused tests for state transitions, timestamp sorting, and width truncation.
 
 ## Open questions
-- Is the right-to-left scan order a status-bar-only concern, or should the picker mirror the same visual order?
-- Should completed rows be rendered left of actionable rows, or should the segment preserve first-seen/source order while using priority only for truncation?
-- Is any lightweight timestamp or last-state memory needed, or can this stay stateless?
+- Should the right-to-left visual order be the default unconditionally, or should it be configurable from the start?
+- For `done` rows without numeric `updated_at`, should source order place them closer to or farther from the right edge than timestamped rows?
+- Should `other` states render behind `working`, or stay last/least important for truncation only?
 
 ## Verification
-- Add renderer tests covering a `working` row transitioning to `done` without becoming the rightmost visible item.
-- Add truncation tests to ensure `waiting` and `working` rows still win over `done` rows under constrained width.
+- Add renderer tests showing yellow `waiting` rows render at the right edge in `status-right` scan order.
+- Add renderer tests showing `done` rows sort by earliest completion within the done section.
+- Add a transition-oriented test: a row changing from `done` or `waiting` to `working` moves into the back/background blue section.
+- Add truncation tests proving `waiting` rows still survive constrained width over lower-priority rows.
 - Run `./scripts/check`.

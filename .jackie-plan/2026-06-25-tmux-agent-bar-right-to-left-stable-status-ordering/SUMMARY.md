@@ -2,8 +2,9 @@
 id: 2026-06-25-tmux-agent-bar-right-to-left-stable-status-ordering
 title: tmux-agent-bar right-to-left stable status ordering
 state: inbox
+priority: high
 createdAt: 2026-06-25T01:22:19.265Z
-updatedAt: 2026-06-25T01:22:33.390Z
+updatedAt: 2026-06-25T17:23:05.947Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 sourceRepo: /Users/jackokerman/tmux-agent-bar
 sourcePath: .
