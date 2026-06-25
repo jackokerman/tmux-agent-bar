@@ -1,10 +1,10 @@
 ---
 id: 2026-06-25-tmux-agent-bar-right-to-left-stable-status-ordering
 title: tmux-agent-bar right-to-left stable status ordering
-state: ready-to-ship
+state: complete
 priority: high
 createdAt: 2026-06-25T01:22:19.265Z
-updatedAt: 2026-06-25T17:29:02.816Z
+updatedAt: 2026-06-25T17:29:27.603Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 sourceRepo: /Users/jackokerman/tmux-agent-bar
 sourcePath: .
