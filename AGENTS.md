@@ -14,6 +14,8 @@ Status rendering must stay bounded and predictable. Avoid polling loops, unbound
 
 If a bug only affects the active-session label or tmux refresh timing, inspect the tmux-side wrapper or `status-left`/`status-right` config that calls this repo before changing the shared runtime.
 
+When local status behavior depends on what an agent hook surface does or does not expose, verify the current official product hook docs before preserving or extending transcript inference or process-scanning fallbacks.
+
 When you need placeholder names in docs, examples, or fixtures, use generic terms such as `remote`, `devbox`, `~/src/project`, `/workspace/project`, or `frontend/app`, not real internal project names or paths.
 
 Prefer documenting extension points and contracts over documenting one specific personal setup. If an integration detail only applies to a private environment, leave it out of the public repo or describe it generically.
