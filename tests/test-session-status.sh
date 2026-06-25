@@ -119,11 +119,12 @@ run_case \
     ""
 
 run_render_case() {
-  local name="$1" available_width="$2" rows="$3" expected="$4" actual=""
+  local name="$1" available_width="$2" rows="$3" expected="$4" scan_direction="${5:-}" actual=""
 
   actual=$(
     AVAILABLE_WIDTH="${available_width}" \
     ROWS="${rows}" \
+    TMUX_AGENT_BAR_SCAN_DIRECTION="${scan_direction}" \
     TARGET_SCRIPT="${TARGET_SCRIPT}" \
     "${BASH}" <<'EOF'
 set -euo pipefail
@@ -150,8 +151,15 @@ run_render_case \
 run_render_case \
     "renderer orders compact status for right-to-left scanning" \
     "80" \
-    $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t10\ndone-late\tcodex\tdone\tlocal_explicit\t20\n' \
-    $'#[fg=#82aaff] working-a#[fg=default]  #[fg=#21c7a8] done-late#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#e3d18a] waiting-a#[fg=default] '
+    $'waiting-old\tcodex\twaiting\tlocal_explicit\t10\nwaiting-new\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t20\ndone-late\tcodex\tdone\tlocal_explicit\t50\n' \
+    $'#[fg=#82aaff] working-a#[fg=default]  #[fg=#21c7a8] done-late#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#e3d18a] waiting-new#[fg=default]  #[fg=#e3d18a] waiting-old#[fg=default] '
+
+run_render_case \
+    "renderer can optimize compact status for left-to-right scanning" \
+    "80" \
+    $'waiting-old\tcodex\twaiting\tlocal_explicit\t10\nwaiting-new\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t20\n' \
+    $'#[fg=#e3d18a] waiting-old#[fg=default]  #[fg=#e3d18a] waiting-new#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#82aaff] working-a#[fg=default] ' \
+    "left-to-right"
 
 run_render_case \
     "renderer moves recovered working rows behind done and waiting rows" \

@@ -55,7 +55,7 @@ tmux_agent_bar_picker_emit_rows() {
     [[ -n "${session}" ]] || continue
     age=$(tmux_agent_bar_picker_age_label "${updated_at}")
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${session}" "${state}" "${session}" "${agent}" "${source}" "${age}"
-  done < <(tmux_agent_bar_emit_prioritized_records "${current}")
+  done < <(tmux_agent_bar_emit_prioritized_records "${current}" | tmux_agent_bar_emit_scan_ordered_records)
 }
 
 tmux_agent_bar_picker_rows_command() {

@@ -61,3 +61,57 @@ tmux_agent_bar_emit_prioritized_records() {
   tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_DONE_RECORDS[@]}"
   tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_OTHER_RECORDS[@]}"
 }
+
+tmux_agent_bar_scan_direction() {
+  case "${TMUX_AGENT_BAR_SCAN_DIRECTION:-right-to-left}" in
+    left-to-right) printf '%s\n' "left-to-right" ;;
+    *)             printf '%s\n' "right-to-left" ;;
+  esac
+}
+
+tmux_agent_bar_emit_scan_ordered_records() {
+  awk -F '\t' -v OFS='\t' '
+    function state_priority(state) {
+      if (state == "waiting") {
+        return 1
+      }
+      if (state == "done") {
+        return 2
+      }
+      if (state == "working") {
+        return 3
+      }
+      return 4
+    }
+
+    {
+      seq += 1
+      timestamp_group = 1
+      timestamp = 0
+      if ($5 ~ /^[0-9]+$/) {
+        timestamp_group = 0
+        timestamp = $5
+      }
+      print state_priority($3), timestamp_group, timestamp, seq, $0
+    }
+  ' | sort -t $'\t' -k1,1n -k2,2n -k3,3n -k4,4n | cut -f5-
+}
+
+tmux_agent_bar_emit_visual_ordered_records() {
+  local direction="" record="" i=0
+  local -a scan_ordered_records=()
+
+  direction=$(tmux_agent_bar_scan_direction)
+  if [[ "${direction}" == "left-to-right" ]]; then
+    tmux_agent_bar_emit_scan_ordered_records
+    return 0
+  fi
+
+  while IFS= read -r record || [[ -n "${record}" ]]; do
+    scan_ordered_records+=("${record}")
+  done < <(tmux_agent_bar_emit_scan_ordered_records)
+
+  for (( i = ${#scan_ordered_records[@]} - 1; i >= 0; i-- )); do
+    printf '%s\n' "${scan_ordered_records[$i]}"
+  done
+}

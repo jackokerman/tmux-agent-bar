@@ -13,7 +13,8 @@ state records.
 - Renders `working`, `waiting`, and `done` state for non-current tmux sessions.
 - Orders compact `status-right` output for right-to-left scanning: `waiting`
   sessions sit at the right edge, `done` sessions come next, and `working`
-  sessions sit behind them.
+  sessions sit behind them. Within each state, older timestamped rows stay
+  ahead of newer rows.
 - Tracks explicit state through `bin/tmux-agent-bar-hook`.
 - Includes built-in agent classifiers for `claude` and `codex`.
 - Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and
@@ -91,6 +92,10 @@ current-state-cached [current-target]
 Use `render-cached` or `current-state-cached` when the caller must avoid source
 refresh hooks. Use `current-state` when another tmux-side integration needs the
 current session's resolved state instead of the rendered multi-session segment.
+
+The status renderer defaults to optimizing for right-to-left scanning from the
+right edge. Set `TMUX_AGENT_BAR_SCAN_DIRECTION=left-to-right` in the renderer
+environment to put the front of the same queue at the left edge instead.
 
 `bin/tmux-agent-bar-picker` opens an optional `fzf` picker over the same
 prioritized session rows and switches to the selected tmux session:

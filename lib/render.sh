@@ -94,16 +94,14 @@ tmux_session_status_truncation_indicator() {
 
 tmux_session_status_render_records() {
   local current="$1" session="" _agent="" state="" _source="" _updated_at=""
+  local record="" direction=""
   local output="" formatted="" rendered="" available_width="" contribution=0 total_width=0 hidden=0 indicator="" indicator_width=0 last_index=0
-  local show_indicator=0 insert_index=0 i=0 j=0
-  local -a accepted_items=() accepted_contributions=() accepted_states=() accepted_updated_ats=()
-  local -a candidate_items=() candidate_states=() candidate_updated_ats=()
-  local -a visual_items=() other_items=() working_items=() waiting_items=()
-  local -a done_unknown_items=() done_numeric_items=() done_numeric_updated_ats=()
-  local -a next_done_numeric_items=() next_done_numeric_updated_ats=()
+  local show_indicator=0 i=0
+  local -a accepted_records=() accepted_contributions=() candidate_records=() visual_items=()
 
   available_width=$(tmux_session_status_right_available_width 2>/dev/null || true)
   indicator=$(tmux_session_status_truncation_indicator)
+  direction=$(tmux_agent_bar_scan_direction)
 
   while IFS=$'\t' read -r session _agent state _source _updated_at || [[ -n "${session:-}${_agent:-}${state:-}${_source:-}${_updated_at:-}" ]]; do
     [[ -n "${session}" ]] || continue
@@ -114,18 +112,16 @@ tmux_session_status_render_records() {
     fi
 
     rendered+="${session}"$'\n'
-    formatted=$(tmux_session_status_format_session "${session}" "${state}")
-    candidate_items+=("${formatted}")
-    candidate_states+=("${state}")
-    candidate_updated_ats+=("${_updated_at}")
+    candidate_records+=("${session}"$'\t'"${_agent}"$'\t'"${state}"$'\t'"${_source}"$'\t'"${_updated_at}")
   done
 
-  if (( ${#candidate_items[@]} > 0 )); then
-    for (( i = 0; i < ${#candidate_items[@]}; i++ )); do
-      formatted="${candidate_items[$i]}"
+  if (( ${#candidate_records[@]} > 0 )); then
+    for (( i = 0; i < ${#candidate_records[@]}; i++ )); do
+      IFS=$'\t' read -r session _agent state _source _updated_at <<< "${candidate_records[$i]}"
+      formatted=$(tmux_session_status_format_session "${session}" "${state}")
       if [[ "${available_width}" =~ ^[0-9]+$ ]]; then
         contribution=$(tmux_session_status_visible_width "${formatted}")
-        if (( ${#accepted_items[@]} > 0 )); then
+        if (( ${#accepted_records[@]} > 0 )); then
           contribution=$(( contribution + 2 ))
         fi
 
@@ -134,36 +130,30 @@ tmux_session_status_render_records() {
           continue
         fi
 
-        accepted_items+=("${formatted}")
+        accepted_records+=("${candidate_records[$i]}")
         accepted_contributions+=("${contribution}")
-        accepted_states+=("${candidate_states[$i]}")
-        accepted_updated_ats+=("${candidate_updated_ats[$i]}")
         total_width=$(( total_width + contribution ))
         continue
       fi
 
-      accepted_items+=("${formatted}")
-      accepted_states+=("${candidate_states[$i]}")
-      accepted_updated_ats+=("${candidate_updated_ats[$i]}")
+      accepted_records+=("${candidate_records[$i]}")
     done
   fi
 
   if [[ "${available_width}" =~ ^[0-9]+$ ]] && (( hidden > 0 )); then
     indicator_width=$(tmux_session_status_visible_width "${indicator}")
-    if (( ${#accepted_items[@]} > 0 )); then
+    if (( ${#accepted_records[@]} > 0 )); then
       indicator_width=$(( indicator_width + 2 ))
     fi
 
-    while (( ${#accepted_items[@]} > 0 && total_width + indicator_width + 1 > available_width )); do
-      last_index=$(( ${#accepted_items[@]} - 1 ))
+    while (( ${#accepted_records[@]} > 0 && total_width + indicator_width + 1 > available_width )); do
+      last_index=$(( ${#accepted_records[@]} - 1 ))
       total_width=$(( total_width - accepted_contributions[$last_index] ))
-      accepted_items=("${accepted_items[@]:0:${last_index}}")
+      accepted_records=("${accepted_records[@]:0:${last_index}}")
       accepted_contributions=("${accepted_contributions[@]:0:${last_index}}")
-      accepted_states=("${accepted_states[@]:0:${last_index}}")
-      accepted_updated_ats=("${accepted_updated_ats[@]:0:${last_index}}")
       hidden=$(( hidden + 1 ))
       indicator_width=$(tmux_session_status_visible_width "${indicator}")
-      if (( ${#accepted_items[@]} > 0 )); then
+      if (( ${#accepted_records[@]} > 0 )); then
         indicator_width=$(( indicator_width + 2 ))
       fi
     done
@@ -173,57 +163,16 @@ tmux_session_status_render_records() {
     fi
   fi
 
-  for (( i = 0; i < ${#accepted_items[@]}; i++ )); do
-    case "${accepted_states[$i]}" in
-      waiting)
-        waiting_items+=("${accepted_items[$i]}")
-        ;;
-      working)
-        working_items+=("${accepted_items[$i]}")
-        ;;
-      done)
-        if [[ "${accepted_updated_ats[$i]}" =~ ^[0-9]+$ ]]; then
-          insert_index="${#done_numeric_items[@]}"
-          for (( j = 0; j < ${#done_numeric_items[@]}; j++ )); do
-            if (( accepted_updated_ats[$i] > done_numeric_updated_ats[$j] )); then
-              insert_index="${j}"
-              break
-            fi
-          done
-
-          next_done_numeric_items=()
-          next_done_numeric_updated_ats=()
-          for (( j = 0; j < insert_index; j++ )); do
-            next_done_numeric_items+=("${done_numeric_items[$j]}")
-            next_done_numeric_updated_ats+=("${done_numeric_updated_ats[$j]}")
-          done
-          next_done_numeric_items+=("${accepted_items[$i]}")
-          next_done_numeric_updated_ats+=("${accepted_updated_ats[$i]}")
-          for (( j = insert_index; j < ${#done_numeric_items[@]}; j++ )); do
-            next_done_numeric_items+=("${done_numeric_items[$j]}")
-            next_done_numeric_updated_ats+=("${done_numeric_updated_ats[$j]}")
-          done
-          done_numeric_items=("${next_done_numeric_items[@]}")
-          done_numeric_updated_ats=("${next_done_numeric_updated_ats[@]}")
-          continue
-        fi
-
-        done_unknown_items+=("${accepted_items[$i]}")
-        ;;
-      *)
-        other_items+=("${accepted_items[$i]}")
-        ;;
-    esac
-  done
-
-  if (( show_indicator == 1 )); then
+  if (( show_indicator == 1 )) && [[ "${direction}" == "right-to-left" ]]; then
     visual_items+=("${indicator}")
   fi
-  visual_items+=("${other_items[@]}")
-  visual_items+=("${working_items[@]}")
-  visual_items+=("${done_unknown_items[@]}")
-  visual_items+=("${done_numeric_items[@]}")
-  visual_items+=("${waiting_items[@]}")
+  while IFS=$'\t' read -r session _agent state _source _updated_at || [[ -n "${session:-}${_agent:-}${state:-}${_source:-}${_updated_at:-}" ]]; do
+    [[ -n "${session}" ]] || continue
+    visual_items+=("$(tmux_session_status_format_session "${session}" "${state}")")
+  done < <(tmux_agent_bar_print_record_bucket "${accepted_records[@]}" | tmux_agent_bar_emit_visual_ordered_records)
+  if (( show_indicator == 1 )) && [[ "${direction}" == "left-to-right" ]]; then
+    visual_items+=("${indicator}")
+  fi
 
   if (( ${#visual_items[@]} > 0 )); then
     output="${visual_items[0]}"

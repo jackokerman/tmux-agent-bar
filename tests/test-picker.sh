@@ -100,8 +100,11 @@ tmux_agent_bar_test_emit_records() {
   local now=""
 
   now=$(date +%s)
-  printf '%s\n' $'remote/src/project\tcodex\twaiting\ttest_source\t'"$(( now - 60 ))"
-  printf '%s\n' $'done-session\tclaude\tdone\ttest_source\t0'
+  printf '%s\n' $'waiting-old\tcodex\twaiting\ttest_source\t'"$(( now - 120 ))"
+  printf '%s\n' $'waiting-new\tcodex\twaiting\ttest_source\t'"$(( now - 60 ))"
+  printf '%s\n' $'working-session\tcodex\tworking\ttest_source\t'"$(( now - 30 ))"
+  printf '%s\n' $'done-old\tclaude\tdone\ttest_source\t'"$(( now - 300 ))"
+  printf '%s\n' $'done-new\tclaude\tdone\ttest_source\t'"$(( now - 180 ))"
   printf '%s\n' $'current\tcodex\tworking\ttest_source\t30'
 }
 
@@ -124,10 +127,10 @@ EOF
   fzf_args=$(<"${tmp_dir}/fzf-args")
 
   assert_equal "picker does not print on successful switch" "" "${actual}"
-  assert_equal "picker switches using the hidden full target" "remote/src/project" "${switched_target}"
+  assert_equal "picker switches using the hidden full target" "waiting-old" "${switched_target}"
   assert_equal \
-    "picker formats prioritized rows and filters the current session" \
-    $'remote/src/project\twaiting\tremote/src/project\tcodex\ttest_source\t1m\ndone-session\tdone\tdone-session\tclaude\ttest_source\t-' \
+    "picker formats scan-ordered rows and filters the current session" \
+    $'waiting-old\twaiting\twaiting-old\tcodex\ttest_source\t2m\nwaiting-new\twaiting\twaiting-new\tcodex\ttest_source\t1m\ndone-old\tdone\tdone-old\tclaude\ttest_source\t5m\ndone-new\tdone\tdone-new\tclaude\ttest_source\t3m\nworking-session\tworking\tworking-session\tcodex\ttest_source\t30s' \
     "${fzf_input}"
   assert_matches "picker configures fzf hidden target column" '--with-nth=2\.\.' "${fzf_args}"
   assert_matches "picker configures ctrl-r reload" 'ctrl-r:reload' "${fzf_args}"
