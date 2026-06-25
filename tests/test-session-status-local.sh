@@ -381,3 +381,71 @@ EOF
 
 run_snapshot_collection_case \
     "local collector reuses shared snapshots and still finds shell-wrapped agents"
+
+run_suffixed_direct_command_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" actual="" ps_calls=""
+
+    tmp_dir=$(mktemp -d)
+    mkdir -p "${tmp_dir}/bin"
+
+    cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
+  printf '%s\n' "current"
+  printf '%s\n' "direct-agent"
+  exit 0
+fi
+
+if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
+  printf '%s\t%s\t%s\n' "current" "100" "vim"
+  printf '%s\t%s\t%s\n' "direct-agent" "200" "codex-aarch64-a"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/tmux"
+
+    cat > "${tmp_dir}/bin/ps" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "${PS_LOG}"
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/ps"
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    actual=$(
+      PATH="${tmp_dir}/bin:${PATH}" \
+      PS_LOG="${tmp_dir}/ps.log" \
+      tmux_session_status_local_emit_records "current"
+    )
+
+    assert_equal \
+      "${name}" \
+      $'direct-agent\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
+
+    if [[ -f "${tmp_dir}/ps.log" ]]; then
+      ps_calls=$(wc -l < "${tmp_dir}/ps.log" | tr -d '[:space:]')
+    else
+      ps_calls="0"
+    fi
+
+    assert_equal "${name} skips ps when direct pane commands already identify the agent" "0" "${ps_calls}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_suffixed_direct_command_case \
+    "suffixed direct commands render without a process scan"

@@ -7,13 +7,71 @@ TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=""
 
+tmux_agent_bar_command_matches_known_command() {
+  local pane_command="$1" known_command="$2"
+
+  [[ -n "${pane_command}" ]] || return 1
+  [[ -n "${known_command}" ]] || return 1
+
+  [[ "${pane_command}" == "${known_command}" || "${pane_command}" == "${known_command}-"* ]]
+}
+
+tmux_agent_bar_known_command_for_pane_command() {
+  local pane_command="$1" known_command=""
+
+  for known_command in "${KNOWN_AGENT_COMMANDS[@]}"; do
+    [[ -n "${known_command}" ]] || continue
+    if tmux_agent_bar_command_matches_known_command "${pane_command}" "${known_command}"; then
+      printf '%s\n' "${known_command}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+tmux_agent_bar_shell_wrapped_pane_command() {
+  local pane_command="$1"
+
+  case "${pane_command}" in
+    bash|dash|fish|ksh|sh|zsh) return 0 ;;
+  esac
+
+  return 1
+}
+
+tmux_agent_bar_snapshot_has_session() {
+  local snapshot="$1" session="$2" snapshot_session="" snapshot_command=""
+
+  while IFS=$'\t' read -r snapshot_session snapshot_command || [[ -n "${snapshot_session:-}${snapshot_command:-}" ]]; do
+    [[ -n "${snapshot_session}" ]] || continue
+    [[ "${snapshot_session}" == "${session}" ]] && return 0
+  done <<< "${snapshot}"
+
+  return 1
+}
+
+tmux_agent_bar_snapshot_add_session_command() {
+  local session="$1" command="$2"
+
+  [[ -n "${session}" ]] || return 0
+  [[ -n "${command}" ]] || return 0
+  tmux_agent_bar_snapshot_has_session "${TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT}" "${session}" && return 0
+
+  if [[ -n "${TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT}" ]]; then
+    TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT+=$'\n'
+  fi
+  TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT+="${session}"$'\t'"${command}"
+}
+
 tmux_agent_bar_local_prepare_snapshots() {
-  local target_agents="" known_command=""
+  local target_agents="" known_command="" pane_session="" pane_pid="" pane_command="" matched_command=""
+  local needs_process_scan=0 process_snapshot="" snapshot_session="" snapshot_command=""
 
   TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY=1
   TMUX_AGENT_BAR_LOCAL_SESSIONS_SNAPSHOT=$(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
   TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT=$(tmux list-panes -a -F '#{session_name}'$'\t''#{pane_pid}'$'\t''#{pane_current_command}' 2>/dev/null || true)
-  TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+  TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=""
   TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
   TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=""
 
@@ -25,8 +83,25 @@ tmux_agent_bar_local_prepare_snapshots() {
     target_agents+="${known_command}"
   done
 
-  if [[ -n "${target_agents//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}" ]]; then
-    TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=$(
+  while IFS=$'\t' read -r pane_session pane_pid pane_command || [[ -n "${pane_session:-}${pane_pid:-}${pane_command:-}" ]]; do
+    [[ -n "${pane_session}" ]] || continue
+    matched_command=$(tmux_agent_bar_known_command_for_pane_command "${pane_command}" 2>/dev/null || true)
+    if [[ -n "${matched_command}" ]]; then
+      tmux_agent_bar_snapshot_add_session_command "${pane_session}" "${matched_command}"
+      continue
+    fi
+
+    if tmux_agent_bar_shell_wrapped_pane_command "${pane_command}"; then
+      needs_process_scan=1
+    fi
+  done <<< "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}"
+
+  if [[ "${needs_process_scan}" == "1" && -n "${target_agents//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}" ]]; then
+    TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+  fi
+
+  if [[ -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}" ]]; then
+    process_snapshot=$(
       awk -v target_agents="${target_agents}" '
         BEGIN {
           agent_count = split(target_agents, agents, ",")
@@ -100,6 +175,11 @@ tmux_agent_bar_local_prepare_snapshots() {
         }
       ' <(printf '%s\n' "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}") <(printf '%s\n' "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}")
     )
+
+    while IFS=$'\t' read -r snapshot_session snapshot_command || [[ -n "${snapshot_session:-}${snapshot_command:-}" ]]; do
+      [[ -n "${snapshot_session}" ]] || continue
+      tmux_agent_bar_snapshot_add_session_command "${snapshot_session}" "${snapshot_command}"
+    done <<< "${process_snapshot}"
   fi
 
   local shadowed_sessions_file=""
@@ -131,7 +211,7 @@ _session_has_pane_command() {
   while IFS=$'\t' read -r pane_session _pane_pid cmd || [[ -n "${pane_session:-}${_pane_pid:-}${cmd:-}" ]]; do
     [[ -n "${pane_session}" ]] || continue
     for wanted in "${@:2}"; do
-      if [[ "${cmd}" == "${wanted}" ]]; then
+      if tmux_agent_bar_command_matches_known_command "${cmd}" "${wanted}"; then
         return 0
       fi
     done
@@ -289,12 +369,11 @@ _session_agent_command() {
 
   while IFS=$'\t' read -r pane_session _pane_pid cmd || [[ -n "${pane_session:-}${_pane_pid:-}${cmd:-}" ]]; do
     [[ -n "${pane_session}" ]] || continue
-    for known_cmd in "${KNOWN_AGENT_COMMANDS[@]}"; do
-      if [[ "${cmd}" == "${known_cmd}" ]]; then
-        printf '%s\n' "${known_cmd}"
-        return 0
-      fi
-    done
+    known_cmd=$(tmux_agent_bar_known_command_for_pane_command "${cmd}" 2>/dev/null || true)
+    if [[ -n "${known_cmd}" ]]; then
+      printf '%s\n' "${known_cmd}"
+      return 0
+    fi
   done < <(_session_pane_rows "${session}")
 
   _session_live_agent_command "${session}" 2>/dev/null || return 1
