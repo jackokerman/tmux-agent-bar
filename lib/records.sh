@@ -88,13 +88,13 @@ tmux_agent_bar_emit_scan_ordered_records() {
       seq += 1
       timestamp_group = 1
       timestamp = 0
-      if ($5 ~ /^[0-9]+$/) {
+      if ($3 != "working" && $5 ~ /^[0-9]+$/) {
         timestamp_group = 0
         timestamp = $5
       }
-      print state_priority($3), timestamp_group, timestamp, seq, $0
+      print state_priority($3), timestamp_group, timestamp, $1, seq, $0
     }
-  ' | sort -t $'\t' -k1,1n -k2,2n -k3,3n -k4,4n | cut -f5-
+  ' | sort -t $'\t' -k1,1n -k2,2n -k3,3n -k4,4 -k5,5n | cut -f6-
 }
 
 tmux_agent_bar_emit_visual_ordered_records() {

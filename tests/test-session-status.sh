@@ -217,6 +217,35 @@ EOF
 
 run_prioritized_records_case
 
+run_scan_ordered_records_case() {
+  local actual=""
+
+  actual=$(
+    TARGET_SCRIPT="${TARGET_SCRIPT}" \
+    "${BASH}" <<'EOF'
+set -euo pipefail
+
+source "${TARGET_SCRIPT}"
+
+cat <<'ROWS' | tmux_agent_bar_emit_scan_ordered_records
+working-z	codex	working	local_explicit	10
+working-a	codex	working	local_explicit	999
+waiting-b	codex	waiting	local_explicit	40
+waiting-a	codex	waiting	local_explicit	40
+done-new	codex	done	local_explicit	80
+done-old	codex	done	local_explicit	20
+ROWS
+EOF
+  )
+
+  assert_equal \
+    "scan ordering is stable within tiers without using working mtimes" \
+    $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nwaiting-b\tcodex\twaiting\tlocal_explicit\t40\ndone-old\tcodex\tdone\tlocal_explicit\t20\ndone-new\tcodex\tdone\tlocal_explicit\t80\nworking-a\tcodex\tworking\tlocal_explicit\t999\nworking-z\tcodex\tworking\tlocal_explicit\t10' \
+    "${actual}"
+}
+
+run_scan_ordered_records_case
+
 run_current_record_uses_unfiltered_records_case() {
   local tmp_dir="" actual=""
 

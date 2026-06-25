@@ -4,7 +4,7 @@ title: tmux-agent-bar right-to-left stable status ordering
 state: complete
 priority: high
 createdAt: 2026-06-25T01:22:19.265Z
-updatedAt: 2026-06-25T17:35:59.600Z
+updatedAt: 2026-06-25T19:51:35.436Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 sourceRepo: /Users/jackokerman/tmux-agent-bar
 sourcePath: .
