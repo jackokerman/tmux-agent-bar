@@ -7,6 +7,20 @@ TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_SHADOWED_SESSIONS_SNAPSHOT=""
 TMUX_AGENT_BAR_LOCAL_AGENT_COMMANDS_SNAPSHOT=""
 
+tmux_agent_bar_process_snapshot() {
+  local snapshot=""
+
+  # `ucomm` keeps the executable basename instead of the full path, which is
+  # enough for agent matching and avoids bloating the snapshot on macOS.
+  snapshot=$(ps -eo pid=,ppid=,ucomm= 2>/dev/null || true)
+  if [[ -n "${snapshot}" ]]; then
+    printf '%s\n' "${snapshot}"
+    return 0
+  fi
+
+  ps -eo pid=,ppid=,comm= 2>/dev/null || true
+}
+
 tmux_agent_bar_command_matches_known_command() {
   local pane_command="$1" known_command="$2"
 
@@ -97,7 +111,7 @@ tmux_agent_bar_local_prepare_snapshots() {
   done <<< "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}"
 
   if [[ "${needs_process_scan}" == "1" && -n "${target_agents//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}" ]]; then
-    TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+    TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(tmux_agent_bar_process_snapshot)
   fi
 
   if [[ -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}" ]]; then
@@ -294,7 +308,7 @@ _session_live_agent_command() {
   if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
     ps_snapshot="${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}"
   else
-    ps_snapshot=$(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+    ps_snapshot=$(tmux_agent_bar_process_snapshot)
   fi
   # Avoid re-scanning and rewriting the entire ps snapshot just to prove it
   # is non-empty; on large local process tables that can dominate render time.

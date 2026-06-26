@@ -338,7 +338,7 @@ set -euo pipefail
 
 printf '%s\n' "$*" >> "${PS_LOG}"
 
-if [[ "${1:-}" == "-eo" && "${2:-}" == "pid=,ppid=,comm=" ]]; then
+if [[ "${1:-}" == "-eo" && "${2:-}" == "pid=,ppid=,ucomm=" ]]; then
   printf '%s\n' "200 1 codex"
   printf '%s\n' "300 1 bash"
   printf '%s\n' "301 300 codex"
