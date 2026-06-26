@@ -299,6 +299,20 @@ run_shadowed_session_case() {
 run_shadowed_session_case \
     "shadowed sessions are suppressed before local rendering"
 
+run_large_snapshot_guard_case() {
+  if grep -Fq '${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}' "${PROJECT_ROOT}/lib/local-collector.sh"; then
+    fail "local collector should not strip all whitespace from the pane snapshot"
+  fi
+
+  if grep -Fq '${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}' "${PROJECT_ROOT}/lib/local-collector.sh"; then
+    fail "local collector should not strip all whitespace from the process snapshot"
+  fi
+
+  pass "local collector avoids expensive whitespace stripping on large snapshots"
+}
+
+run_large_snapshot_guard_case
+
 run_snapshot_collection_case() {
   local name="$1"
 

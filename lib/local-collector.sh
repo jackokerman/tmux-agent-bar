@@ -110,11 +110,11 @@ tmux_agent_bar_local_prepare_snapshots() {
     fi
   done <<< "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}"
 
-  if [[ "${needs_process_scan}" == "1" && -n "${target_agents//[[:space:]]/}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT//[[:space:]]/}" ]]; then
+  if [[ "${needs_process_scan}" == "1" && -n "${target_agents}" && -n "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}" ]]; then
     TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT=$(tmux_agent_bar_process_snapshot)
   fi
 
-  if [[ -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT//[[:space:]]/}" ]]; then
+  if [[ -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}" ]]; then
     process_snapshot=$(
       awk -v target_agents="${target_agents}" '
         BEGIN {
@@ -289,7 +289,7 @@ _session_live_agent_command() {
     fi
     pane_pids+="${pane_pid}"
   done <<< "${pane_rows}"
-  [[ -n "${pane_pids//[[:space:]]/}" ]] || return 1
+  [[ -n "${pane_pids}" ]] || return 1
 
   target_command=$(tmux_agent_bar_command_for_agent "${agent}" 2>/dev/null || true)
   if [[ -n "${target_command}" ]]; then
@@ -303,7 +303,7 @@ _session_live_agent_command() {
       target_agents+="${known_command}"
     done
   fi
-  [[ -n "${target_agents//[[:space:]]/}" ]] || return 1
+  [[ -n "${target_agents}" ]] || return 1
 
   if [[ "${TMUX_AGENT_BAR_LOCAL_SNAPSHOTS_READY}" == "1" ]]; then
     ps_snapshot="${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}"
