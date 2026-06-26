@@ -63,6 +63,19 @@ run_switch_selection_case() {
   tmp_dir=$(mktemp -d)
   mkdir -p "${tmp_dir}/bin" "${tmp_dir}/config/tmux-agent-bar/sources"
 
+  cat > "${tmp_dir}/bin/date" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "+%s" ]]; then
+  printf '%s\n' "1700000000"
+  exit 0
+fi
+
+exit 1
+EOF
+  chmod +x "${tmp_dir}/bin/date"
+
   cat > "${tmp_dir}/bin/tmux" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
