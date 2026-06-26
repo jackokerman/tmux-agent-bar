@@ -169,7 +169,7 @@ tmux_session_status_render_records() {
   while IFS=$'\t' read -r session _agent state _source _updated_at || [[ -n "${session:-}${_agent:-}${state:-}${_source:-}${_updated_at:-}" ]]; do
     [[ -n "${session}" ]] || continue
     visual_items+=("$(tmux_session_status_format_session "${session}" "${state}")")
-  done < <(tmux_agent_bar_print_record_bucket "${accepted_records[@]}" | tmux_agent_bar_emit_visual_ordered_records)
+  done < <(tmux_agent_bar_print_record_bucket "${accepted_records[@]-}" | tmux_agent_bar_emit_visual_ordered_records)
   if (( show_indicator == 1 )) && [[ "${direction}" == "left-to-right" ]]; then
     visual_items+=("${indicator}")
   fi

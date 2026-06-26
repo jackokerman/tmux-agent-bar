@@ -3,7 +3,7 @@
 tmux_agent_bar_record_already_seen() {
   local session="$1" seen_session=""
 
-  for seen_session in "${TMUX_AGENT_BAR_SEEN_SESSIONS[@]}"; do
+  for seen_session in "${TMUX_AGENT_BAR_SEEN_SESSIONS[@]-}"; do
     [[ "${seen_session}" == "${session}" ]] && return 0
   done
 
@@ -56,10 +56,10 @@ tmux_agent_bar_emit_prioritized_records() {
     tmux_agent_bar_append_prioritized_record "${state}" "${record}"
   done < <(tmux_agent_bar_emit_registered_records "${source_current}")
 
-  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_WAITING_RECORDS[@]}"
-  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_WORKING_RECORDS[@]}"
-  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_DONE_RECORDS[@]}"
-  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_OTHER_RECORDS[@]}"
+  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_WAITING_RECORDS[@]-}"
+  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_WORKING_RECORDS[@]-}"
+  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_DONE_RECORDS[@]-}"
+  tmux_agent_bar_print_record_bucket "${TMUX_AGENT_BAR_OTHER_RECORDS[@]-}"
 }
 
 tmux_agent_bar_scan_direction() {
