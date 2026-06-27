@@ -396,6 +396,76 @@ EOF
 run_snapshot_collection_case \
     "local collector reuses shared snapshots and still finds shell-wrapped agents"
 
+run_runtime_wrapped_collection_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" actual="" ps_calls=""
+
+    tmp_dir=$(mktemp -d)
+    mkdir -p "${tmp_dir}/bin"
+
+    cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
+  printf '%s\n' "current"
+  printf '%s\n' "picked-agent"
+  exit 0
+fi
+
+if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
+  printf '%s\t%s\t%s\n' "current" "100" "vim"
+  printf '%s\t%s\t%s\n' "picked-agent" "200" "bun"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/tmux"
+
+    cat > "${tmp_dir}/bin/ps" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "${PS_LOG}"
+
+if [[ "${1:-}" == "-eo" && "${2:-}" == "pid=,ppid=,ucomm=" ]]; then
+  printf '%s\n' "200 1 bun"
+  printf '%s\n' "201 200 codex"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/ps"
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    actual=$(
+      PATH="${tmp_dir}/bin:${PATH}" \
+      PS_LOG="${tmp_dir}/ps.log" \
+      tmux_session_status_local_emit_records "current"
+    )
+
+    assert_equal \
+      "${name}" \
+      $'picked-agent\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
+
+    ps_calls=$(wc -l < "${tmp_dir}/ps.log" | tr -d '[:space:]')
+    assert_equal "${name} uses a single ps snapshot" "1" "${ps_calls}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_runtime_wrapped_collection_case \
+    "local collector finds runtime-wrapped agents"
+
 run_suffixed_direct_command_case() {
   local name="$1"
 

@@ -54,6 +54,18 @@ tmux_agent_bar_shell_wrapped_pane_command() {
   return 1
 }
 
+tmux_agent_bar_process_wrapped_pane_command() {
+  local pane_command="$1"
+
+  tmux_agent_bar_shell_wrapped_pane_command "${pane_command}" && return 0
+
+  case "${pane_command}" in
+    bun|deno|node|npm|npx|pnpm|python|python3|ruby|yarn) return 0 ;;
+  esac
+
+  return 1
+}
+
 tmux_agent_bar_snapshot_has_session() {
   local snapshot="$1" session="$2" snapshot_session="" snapshot_command=""
 
@@ -105,7 +117,7 @@ tmux_agent_bar_local_prepare_snapshots() {
       continue
     fi
 
-    if tmux_agent_bar_shell_wrapped_pane_command "${pane_command}"; then
+    if tmux_agent_bar_process_wrapped_pane_command "${pane_command}"; then
       needs_process_scan=1
     fi
   done <<< "${TMUX_AGENT_BAR_LOCAL_PANES_SNAPSHOT}"
