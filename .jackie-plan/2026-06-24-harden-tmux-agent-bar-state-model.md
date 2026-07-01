@@ -141,3 +141,21 @@ The conservative implementation path is to write characterization tests first, t
 - Active turns still stay visibly `working` while they are actually current.
 - Main lifecycle behavior is covered by tests that would catch future flapping regressions.
 - `./scripts/check` passes before commit/push.
+
+## Agent handoff
+
+Implemented the state-model hardening plan in tmux-agent-bar.
+
+Changes made:
+- Documented the explicit local state model and precedence in docs/agents.md, with a README pointer.
+- Removed the local collector's live-inference heartbeat that touched explicit working state files.
+- Added Codex tail characterization tests for completed-turn boundary freshness, including current-turn working, stale waiting above a boundary, and current waiting below a boundary.
+- Updated local collector tests so live working still renders as working but does not mutate durable hook state, and stale working expires to done when live inference becomes neutral.
+
+Verification passed:
+- ./tests/test-pane-state.sh
+- ./tests/test-session-status.sh
+- ./tests/test-session-status-local.sh
+- ./scripts/check
+
+Next state: ready to commit and push to main.

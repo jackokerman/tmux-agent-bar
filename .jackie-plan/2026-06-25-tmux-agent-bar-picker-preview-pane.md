@@ -35,3 +35,7 @@ Implementation constraints once design is settled:
 - Keep `ctrl-r` reload behavior unless the new design replaces it deliberately.
 - Add focused tests for fzf arguments, preview command wiring, ordering, and any documented key binding changes.
 - Update README and adjacent install docs only after the final user-facing picker behavior is chosen.
+
+## Agent handoff
+
+Captured user design input for the picker follow-up and researched local `sesh` help plus the public `samleeney/tmux-agent-status` repo. The plan is intentionally still inbox/design-blocked. Relevant findings: inspiration repo uses `prefix + S`, flat agents mode sorted by actionable status, live `tmux capture-pane` preview, compact `60x14` popup without preview, and `75% x 60%` when preview is visible. No code changes were made.

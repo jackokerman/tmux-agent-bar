@@ -29,3 +29,7 @@ Implement the label logic inside `bin/tmux-agent-bar-picker`, not in the shared 
 - Add a collision case that verifies incremental parent qualification.
 - Preserve the existing assertion that picker selection switches using the full hidden target.
 - Run `./scripts/check`.
+
+## Agent handoff
+
+Implemented picker-local compact session labels without changing the shared row contract. `bin/tmux-agent-bar-picker` now compacts path-like session names to the trailing component and reveals additional parent segments only when collisions remain, while the hidden first column still carries the full `session_label` target for `tmux switch-client -t`. Added a deterministic picker test that covers collision disambiguation and preserved the existing switch-target assertion, then updated the README picker section and verified with `tests/test-picker.sh` and `./scripts/check`.

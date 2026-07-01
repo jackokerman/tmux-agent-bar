@@ -87,3 +87,20 @@ If added, keep it generic and small, for example an environment/config variable 
 - Add a transition-oriented test: a row changing from `done` or `waiting` to `working` moves into the back/background blue section.
 - Add truncation tests proving `waiting` rows still survive constrained width over lower-priority rows.
 - Run `./scripts/check`.
+
+## Agent handoff
+
+Additional stability fix after observing same-tier flip-flopping in live tmux status.
+
+Cause:
+- Explicit `working` hooks rewrite local state files, so `updated_at` is last hook activity, not stable tier-entry time.
+- The scan-order helper used `updated_at` for every state and source sequence as the final tie-breaker, allowing active working rows or equal-timestamp rows to trade places between refreshes.
+
+Fix:
+- `tmux_agent_bar_emit_scan_ordered_records` now ignores `updated_at` for `working` rows and uses session label as the deterministic same-tier key.
+- Non-working rows still use numeric `updated_at` first, but ties now use session label instead of source order.
+- Added a focused regression test proving working rows do not reorder based on volatile mtimes and equal waiting timestamps are deterministic.
+
+Verification:
+- `tests/test-session-status.sh` passes.
+- `./scripts/check` passes.
