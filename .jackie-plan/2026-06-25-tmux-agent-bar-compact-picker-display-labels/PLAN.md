@@ -5,8 +5,6 @@ state: complete
 createdAt: 2026-06-25T01:03:26.300Z
 updatedAt: 2026-06-25T21:50:14.616Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
-sourceRepo: /Users/jackokerman/tmux-agent-bar
-sourcePath: .
 ---
 
 # tmux-agent-bar compact picker display labels

@@ -5,8 +5,6 @@ state: inbox
 createdAt: 2026-06-25T00:47:17.114Z
 updatedAt: 2026-06-26T00:40:52.719Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
-sourceRepo: /Users/jackokerman/tmux-agent-bar
-sourcePath: 
 ---
 
 # tmux-agent-bar picker preview pane

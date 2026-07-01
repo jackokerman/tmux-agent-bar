@@ -5,8 +5,6 @@ state: inbox
 createdAt: 2026-06-25T15:46:58.869Z
 updatedAt: 2026-06-25T15:46:58.869Z
 sourcePlan: 2026-06-24-harden-tmux-agent-bar-state-model
-sourceRepo: /Users/jackokerman/src/tmux-agent-bar
-sourcePath: .
 ---
 
 # tmux-agent-bar follow-ups after hook/runtime fix
