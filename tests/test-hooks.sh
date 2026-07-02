@@ -116,6 +116,29 @@ run_codex_hook_unknown_event_case() {
   rm -rf "${tmp_dir}"
 }
 
+run_codex_hook_ignored_event_case() {
+  local event="$1" tmp_dir="" state_dir="" actual=""
+
+  tmp_dir=$(mktemp -d)
+  make_tmux_stub_dir "${tmp_dir}"
+  state_dir="${tmp_dir}/state"
+
+  actual=$(
+    printf '%s\n' '{"hook_event":"'"${event}"'"}' |
+      PATH="${tmp_dir}/bin:${PATH}" \
+      STATE_DIR="${state_dir}" \
+      "${CODEX_HOOK_SCRIPT}" "${event}"
+  )
+
+  assert_equal "codex hook ignores ${event}" "" "${actual}"
+
+  if [[ -d "${state_dir}" ]] && [[ -n "$(find "${state_dir}" -type f -print -quit)" ]]; then
+    fail "codex hook wrote state for ignored event ${event}"
+  fi
+
+  rm -rf "${tmp_dir}"
+}
+
 run_hook_state_dir_case
 run_hook_no_stdout_bell_case
 run_codex_hook_mapping_case \
@@ -127,7 +150,12 @@ run_codex_hook_mapping_case \
   "UserPromptSubmit" \
   "working"
 run_codex_hook_mapping_case \
+  "codex hook maps PreToolUse to working" \
+  "PreToolUse" \
+  "working"
+run_codex_hook_mapping_case \
   "codex hook maps Stop to done" \
   "Stop" \
   "done"
+run_codex_hook_ignored_event_case "PostToolUse"
 run_codex_hook_unknown_event_case

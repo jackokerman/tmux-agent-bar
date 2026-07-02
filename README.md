@@ -51,8 +51,10 @@ For Codex, point supported hook events at:
 The Codex adapter maps:
 
 - `PermissionRequest` to `waiting`
-- `UserPromptSubmit`, `PreToolUse`, and `PostToolUse` to `working`
+- `UserPromptSubmit` and `PreToolUse` to `working`
 - `SessionStart` and `Stop` to `done`
+
+`PostToolUse` is intentionally ignored for durable state. `PreToolUse` already marks the turn as active, and treating the post-tool hook as another `working` edge can keep refreshing stale state after the last tool call if the later `Stop` edge is missed.
 
 Codex still needs live tail inference for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
 

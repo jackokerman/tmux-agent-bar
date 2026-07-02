@@ -13,7 +13,7 @@ tmux_agent_bar_codex_hook_state_for_event() {
     PermissionRequest)
       printf '%s\n' "waiting"
       ;;
-    UserPromptSubmit|PreToolUse|PostToolUse)
+    UserPromptSubmit|PreToolUse)
       printf '%s\n' "working"
       ;;
     SessionStart|Stop)
