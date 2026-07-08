@@ -456,6 +456,16 @@ _session_tail_identified_agent() {
   return 1
 }
 
+_session_tail_identifies_agent() {
+  local session="$1" agent="$2" identified_agent=""
+
+  [[ -n "${agent}" ]] || return 1
+
+  identified_agent=$(_session_tail_identified_agent "${session}" 2>/dev/null || true)
+  [[ -n "${identified_agent}" ]] || return 1
+  [[ "${identified_agent}" == "${agent}" ]]
+}
+
 _state_file_has_stale_working() {
   local state_file="$1"
 
@@ -482,8 +492,9 @@ tmux_session_status_emit_local_record() {
   if [[ -f "${state_file}" ]]; then
     IFS=$'\t' read -r agent state < <(_read_state_record "${state_file}")
 
-    if [[ "${state}" == "done" ]] && [[ " ${KNOWN_AGENT_COMMANDS[*]} " == *" ${agent} "* ]] && \
-       ! _session_has_live_agent_process "${session}" "${agent}"; then
+    if [[ "${state}" == "done" ]] && tmux_agent_bar_command_for_agent "${agent}" >/dev/null 2>&1 && \
+       ! _session_has_live_agent_process "${session}" "${agent}" && \
+       ! _session_tail_identifies_agent "${session}" "${agent}"; then
       rm -f "${state_file}"
       return 0
     fi

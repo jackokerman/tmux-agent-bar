@@ -40,6 +40,49 @@ run_done_cleanup_case() {
 run_done_cleanup_case \
     "explicit done local session without a live agent is hidden and clears state"
 
+run_shell_wrapped_done_identity_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="done-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 1
+    }
+
+    _session_tail_identified_agent() {
+      printf '%s\n' "codex"
+    }
+
+    _session_has_known_agent_pane() {
+      return 1
+    }
+
+    _state_file_mtime() {
+      printf '%s\n' "42"
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'done-shell\tcodex\tdone\tlocal_explicit\t42' \
+      "${actual}"
+
+    if [[ ! -e "${STATE_DIR}/${session}" ]]; then
+      fail "${name} state file was removed"
+    fi
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_done_identity_case \
+    "explicit done shell-wrapped sessions stay visible when the tail identifies the agent"
+
 run_shell_wrapped_explicit_done_case() {
   local name="$1"
 
