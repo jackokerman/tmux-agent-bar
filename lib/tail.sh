@@ -221,6 +221,38 @@ tmux_agent_infer_state_from_tail() {
   tmux_agent_infer_state_from_tail_with_classifier "${tail}" "${classifier}"
 }
 
+tmux_agent_infer_agent_state_from_tail() {
+  local tail="$1" agent="" state="" custom_infer="" seen_agents=""
+
+  for agent in "${TMUX_AGENT_BAR_AGENT_NAMES[@]}"; do
+    [[ -n "${agent}" ]] || continue
+    custom_infer="tmux_${agent}_infer_state_from_tail"
+    declare -F "${custom_infer}" >/dev/null 2>&1 || continue
+
+    state=$("${custom_infer}" "${tail}")
+    if [[ -n "${state}" ]]; then
+      printf '%s\t%s\n' "${agent}" "${state}"
+      return 0
+    fi
+    seen_agents+=$'\n'"${agent}"
+  done
+
+  for agent in "${TMUX_AGENT_BAR_AGENT_NAMES[@]}"; do
+    [[ -n "${agent}" ]] || continue
+    if printf '%s\n' "${seen_agents}" | grep -Fqx "${agent}"; then
+      continue
+    fi
+
+    state=$(tmux_agent_infer_state_from_tail "${agent}" "${tail}")
+    if [[ -n "${state}" ]]; then
+      printf '%s\t%s\n' "${agent}" "${state}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 tmux_agent_session_live_state() {
   local session="$1" agent="$2" tail=""
 
@@ -231,6 +263,15 @@ tmux_agent_session_live_state() {
 
   tail=$(tmux_agent_capture_tail "${session}")
   tmux_agent_infer_state_from_tail "${agent}" "${tail}"
+}
+
+tmux_agent_session_inferred_agent_state() {
+  local session="$1" tail=""
+
+  tail=$(tmux_agent_capture_tail "${session}")
+  [[ -n "${tail}" ]] || return 1
+
+  tmux_agent_infer_agent_state_from_tail "${tail}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

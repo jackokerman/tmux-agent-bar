@@ -250,6 +250,19 @@ _session_has_known_agent_pane() {
   [[ -n "$(_session_agent_command "$1" 2>/dev/null || true)" ]]
 }
 
+_session_has_wrapped_pane() {
+  local session="$1" pane_session="" _pane_pid="" cmd=""
+
+  while IFS=$'\t' read -r pane_session _pane_pid cmd || [[ -n "${pane_session:-}${_pane_pid:-}${cmd:-}" ]]; do
+    [[ -n "${pane_session}" ]] || continue
+    if tmux_agent_bar_process_wrapped_pane_command "${cmd}"; then
+      return 0
+    fi
+  done < <(_session_pane_rows "${session}")
+
+  return 1
+}
+
 _session_is_shadowed() {
   local session="$1" line="" shadowed_sessions=""
 
@@ -417,6 +430,19 @@ _session_live_state() {
   printf '%s\n' ""
 }
 
+_session_tail_inferred_agent_state() {
+  local session="$1"
+
+  _session_has_wrapped_pane "${session}" || return 1
+
+  if declare -F tmux_agent_session_inferred_agent_state >/dev/null 2>&1; then
+    tmux_agent_session_inferred_agent_state "${session}"
+    return 0
+  fi
+
+  return 1
+}
+
 _state_file_has_stale_working() {
   local state_file="$1"
 
@@ -470,7 +496,13 @@ tmux_session_status_emit_local_record() {
     source="local_explicit"
     agent="${active_agent:-${agent}}"
   elif ! _session_has_known_agent_pane "${session}"; then
-    return 0
+    if IFS=$'\t' read -r agent state < <(_session_tail_inferred_agent_state "${session}"); then
+      [[ -n "${agent}" && -n "${state}" ]] || return 0
+      updated_at=0
+      source="local_fallback"
+    else
+      return 0
+    fi
   else
     agent=$(_session_agent_command "${session}" 2>/dev/null || true)
     live_state=$(_session_live_state "${session}" "${agent}")

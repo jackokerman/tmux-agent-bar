@@ -155,6 +155,81 @@ run_shell_wrapped_fallback_case() {
 run_shell_wrapped_fallback_case \
     "shell-wrapped live agent sessions without explicit state still render"
 
+run_shell_wrapped_tail_fallback_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+
+    _session_pane_rows() {
+      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+    }
+
+    _session_agent_command() {
+      return 1
+    }
+
+    tmux_agent_capture_tail() {
+      cat <<'EOF'
+› Fix the navigation config
+
+  gpt-5.5 medium · ~/src/project
+
+• Working (1m 12s • esc to interrupt)
+EOF
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'review-shell\tcodex\tworking\tlocal_fallback\t0' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_tail_fallback_case \
+    "shell-wrapped sessions without a local agent process recover from the live tail"
+
+run_shell_wrapped_neutral_tail_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+
+    _session_pane_rows() {
+      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+    }
+
+    _session_agent_command() {
+      return 1
+    }
+
+    tmux_agent_capture_tail() {
+      cat <<'EOF'
+› Fix the navigation config
+
+  gpt-5.5 medium · ~/src/project
+EOF
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal "${name}" "" "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_neutral_tail_case \
+    "shell-wrapped sessions without a local agent process stay hidden on a neutral tail"
+
 run_idle_fallback_done_case() {
   local name="$1"
 
