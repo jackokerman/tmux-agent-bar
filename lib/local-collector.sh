@@ -443,6 +443,19 @@ _session_tail_inferred_agent_state() {
   return 1
 }
 
+_session_tail_identified_agent() {
+  local session="$1"
+
+  _session_has_wrapped_pane "${session}" || return 1
+
+  if declare -F tmux_agent_session_identified_agent >/dev/null 2>&1; then
+    tmux_agent_session_identified_agent "${session}"
+    return 0
+  fi
+
+  return 1
+}
+
 _state_file_has_stale_working() {
   local state_file="$1"
 
@@ -498,6 +511,11 @@ tmux_session_status_emit_local_record() {
   elif ! _session_has_known_agent_pane "${session}"; then
     if IFS=$'\t' read -r agent state < <(_session_tail_inferred_agent_state "${session}"); then
       [[ -n "${agent}" && -n "${state}" ]] || return 0
+      updated_at=0
+      source="local_fallback"
+    elif agent=$(_session_tail_identified_agent "${session}" 2>/dev/null); then
+      [[ -n "${agent}" ]] || return 0
+      state="done"
       updated_at=0
       source="local_fallback"
     else

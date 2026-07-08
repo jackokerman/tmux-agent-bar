@@ -113,6 +113,10 @@ tmux_codex_tail_has_agent_identity() {
   local tail="$1" line="" marker_count=0
 
   while IFS= read -r line; do
+    if tmux_agent_line_is_external_terminal_boundary "${line}"; then
+      return 1
+    fi
+
     if tmux_codex_line_is_status_footer "${line}"; then
       return 0
     fi
@@ -280,6 +284,23 @@ tmux_agent_infer_agent_state_from_tail() {
   return 1
 }
 
+tmux_agent_identify_agent_from_tail() {
+  local tail="$1" agent="" identity_check=""
+
+  for agent in "${TMUX_AGENT_BAR_AGENT_NAMES[@]}"; do
+    [[ -n "${agent}" ]] || continue
+
+    identity_check="tmux_${agent}_tail_has_agent_identity"
+    declare -F "${identity_check}" >/dev/null 2>&1 || continue
+    if "${identity_check}" "${tail}"; then
+      printf '%s\n' "${agent}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 tmux_agent_session_live_state() {
   local session="$1" agent="$2" tail=""
 
@@ -299,6 +320,15 @@ tmux_agent_session_inferred_agent_state() {
   [[ -n "${tail}" ]] || return 1
 
   tmux_agent_infer_agent_state_from_tail "${tail}"
+}
+
+tmux_agent_session_identified_agent() {
+  local session="$1" tail=""
+
+  tail=$(tmux_agent_capture_tail "${session}")
+  [[ -n "${tail}" ]] || return 1
+
+  tmux_agent_identify_agent_from_tail "${tail}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

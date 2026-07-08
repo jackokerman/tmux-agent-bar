@@ -296,14 +296,98 @@ EOF
     }
 
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
-    assert_equal "${name}" "" "${actual}"
+    assert_equal \
+      "${name}" \
+      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
 
     rm -rf "${tmp_dir}"
   )
 }
 
 run_shell_wrapped_neutral_tail_case \
-    "shell-wrapped sessions without a local agent process stay hidden on a neutral tail"
+    "shell-wrapped sessions without a local agent process render identified neutral tails as done"
+
+run_shell_wrapped_completed_tail_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+
+    _session_pane_rows() {
+      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+    }
+
+    _session_agent_command() {
+      return 1
+    }
+
+    tmux_agent_capture_tail() {
+      cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+─ Worked for 2m 31s ─
+
+
+› Use /skills to list available skills
+
+  gpt-5.5 medium · /workspace/project
+EOF
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_completed_tail_case \
+    "shell-wrapped sessions without a local agent process render completed Codex tails as done"
+
+run_shell_wrapped_connector_tail_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+
+    _session_pane_rows() {
+      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+    }
+
+    _session_agent_command() {
+      return 1
+    }
+
+    tmux_agent_capture_tail() {
+      cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+  gpt-5.5 medium · /workspace/project
+
+Client: Waiting before next attempt
+Connector: disconnected
+EOF
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal "${name}" "" "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_connector_tail_case \
+    "shell-wrapped connector screens stay hidden instead of rendering stale done"
 
 run_idle_fallback_done_case() {
   local name="$1"
