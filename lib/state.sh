@@ -22,6 +22,10 @@ tmux_agent_bar_shadowed_sessions_file() {
   printf '%s/shadowed-sessions.txt\n' "$(tmux_agent_bar_cache_dir)"
 }
 
+tmux_agent_bar_observed_sessions_dir() {
+  printf '%s/observed-sessions\n' "$(tmux_agent_bar_cache_dir)"
+}
+
 tmux_agent_bar_safe_name() {
   local name="$1"
 

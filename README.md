@@ -115,6 +115,14 @@ ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/remote-rows.tsv
 ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/shadowed-sessions.txt
 ```
 
+The local collector also keeps bounded observation markers under:
+
+```text
+${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/observed-sessions/
+```
+
+Those markers are written after a shell-wrapped session is observed in an active or waiting fallback state, so the same session can remain visible as `done` after completion. Orphan markers are pruned when their tmux session no longer exists.
+
 `remote-rows.tsv` uses the normalized five-column row format:
 
 ```text

@@ -466,6 +466,34 @@ _session_tail_identifies_agent() {
   [[ "${identified_agent}" == "${agent}" ]]
 }
 
+_session_observed_agent_file() {
+  local session="$1"
+
+  printf '%s/%s\n' "$(tmux_agent_bar_observed_sessions_dir)" "$(tmux_agent_bar_safe_name "${session}")"
+}
+
+_session_mark_observed_agent() {
+  local session="$1" agent="$2" observed_file=""
+
+  [[ -n "${session}" ]] || return 0
+  [[ -n "${agent}" ]] || return 0
+
+  observed_file=$(_session_observed_agent_file "${session}")
+  mkdir -p "$(dirname "${observed_file}")"
+  printf '%s\n' "${agent}" > "${observed_file}"
+}
+
+_session_observed_agent() {
+  local session="$1" observed_file="" agent=""
+
+  observed_file=$(_session_observed_agent_file "${session}")
+  [[ -f "${observed_file}" ]] || return 1
+
+  IFS= read -r agent < "${observed_file}" || true
+  [[ -n "${agent}" ]] || return 1
+  printf '%s\n' "${agent}"
+}
+
 _state_file_has_stale_working() {
   local state_file="$1"
 
@@ -482,7 +510,7 @@ _state_file_mtime() {
 
 tmux_session_status_emit_local_record() {
   local session="$1" current="$2" state="" active_agent="" agent="" live_state=""
-  local has_known_agent_pane=0 stale_working=0 agent_mismatch=0 state_file="" updated_at=0 source=""
+  local has_known_agent_pane=0 stale_working=0 agent_mismatch=0 state_file="" updated_at=0 source="" observed_agent=""
 
   [[ "${session}" != "${current}" ]] || return 0
   _session_is_shadowed "${session}" && return 0
@@ -528,6 +556,13 @@ tmux_session_status_emit_local_record() {
   elif ! _session_has_known_agent_pane "${session}"; then
     if IFS=$'\t' read -r agent state < <(_session_tail_inferred_agent_state "${session}"); then
       [[ -n "${agent}" && -n "${state}" ]] || return 0
+      _session_mark_observed_agent "${session}" "${agent}"
+      updated_at=0
+      source="local_fallback"
+    elif observed_agent=$(_session_observed_agent "${session}" 2>/dev/null) && \
+       _session_tail_identifies_agent "${session}" "${observed_agent}"; then
+      agent="${observed_agent}"
+      state="done"
       updated_at=0
       source="local_fallback"
     else

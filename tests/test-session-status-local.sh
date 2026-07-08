@@ -12,6 +12,10 @@ source "${TARGET_SCRIPT}"
 # shellcheck source=/dev/null
 source "${PROJECT_ROOT}/tests/testlib.sh"
 
+TEST_CACHE_HOME=$(mktemp -d)
+export XDG_CACHE_HOME="${TEST_CACHE_HOME}"
+trap 'rm -rf "${TEST_CACHE_HOME}"' EXIT
+
 run_done_cleanup_case() {
   local name="$1"
 
@@ -249,6 +253,7 @@ run_shell_wrapped_tail_fallback_case() {
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
       printf '%s\t%s\t%s\n' "${session}" "200" "bash"
@@ -289,6 +294,7 @@ run_shell_wrapped_footerless_tail_fallback_case() {
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
       printf '%s\t%s\t%s\n' "${session}" "200" "bash"
@@ -330,6 +336,7 @@ run_shell_wrapped_unidentified_active_tail_case() {
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
       printf '%s\t%s\t%s\n' "${session}" "200" "bash"
@@ -364,6 +371,7 @@ run_shell_wrapped_neutral_tail_case() {
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
       printf '%s\t%s\t%s\n' "${session}" "200" "bash"
@@ -402,6 +410,7 @@ run_shell_wrapped_completed_tail_case() {
 
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
       printf '%s\t%s\t%s\n' "${session}" "200" "bash"
@@ -436,6 +445,74 @@ EOF
 
 run_shell_wrapped_completed_tail_case \
     "shell-wrapped sessions without a local agent process hide completed Codex tails"
+
+run_shell_wrapped_observed_completion_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="review-shell" actual="" tail_mode="working" observed_file=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}/state"
+    XDG_CACHE_HOME="${tmp_dir}/cache"
+    mkdir -p "${STATE_DIR}"
+
+    _session_pane_rows() {
+      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+    }
+
+    _session_agent_command() {
+      return 1
+    }
+
+    tmux_agent_capture_tail() {
+      if [[ "${tail_mode}" == "working" ]]; then
+        cat <<'EOF'
+› Fix the navigation config
+
+  gpt-5.5 medium · ~/src/project
+
+• Working (1m 12s • esc to interrupt)
+EOF
+        return 0
+      fi
+
+      cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+─ Worked for 2m 31s ─
+
+
+› Use /skills to list available skills
+
+  gpt-5.5 medium · /workspace/project
+EOF
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name} first renders working" \
+      $'review-shell\tcodex\tworking\tlocal_fallback\t0' \
+      "${actual}"
+
+    observed_file="$(tmux_agent_bar_observed_sessions_dir)/${session}"
+    if [[ ! -f "${observed_file}" ]]; then
+      fail "${name} did not record observed active state"
+    fi
+
+    tail_mode="done"
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name} then remains visible as done" \
+      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_observed_completion_case \
+    "observed shell-wrapped fallback sessions stay visible when they complete"
 
 run_shell_wrapped_connector_tail_case() {
   local name="$1"

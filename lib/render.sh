@@ -187,16 +187,27 @@ tmux_session_status_render_records() {
 }
 
 tmux_session_status_prune_orphan_state_files() {
-  local state_dir="" state_file="" safe_name="" real_name=""
+  local state_dir="" state_file="" observed_dir="" observed_file="" safe_name="" real_name=""
 
   state_dir=$(tmux_agent_bar_state_dir)
-  [[ -d "${state_dir}" ]] || return 0
+  if [[ -d "${state_dir}" ]]; then
+    for state_file in "${state_dir}"/*; do
+      [[ -f "${state_file}" ]] || continue
+      safe_name=$(basename "${state_file}")
+      [[ "${safe_name}" == .* ]] && continue
+      real_name=$(tmux_agent_bar_decode_session_name "${safe_name}")
+      tmux has-session -t "${real_name}" 2>/dev/null || rm -f "${state_file}"
+    done
+  fi
 
-  for state_file in "${state_dir}"/*; do
-    [[ -f "${state_file}" ]] || continue
-    safe_name=$(basename "${state_file}")
-    [[ "${safe_name}" == .* ]] && continue
-    real_name=$(tmux_agent_bar_decode_session_name "${safe_name}")
-    tmux has-session -t "${real_name}" 2>/dev/null || rm -f "${state_file}"
-  done
+  observed_dir=$(tmux_agent_bar_observed_sessions_dir)
+  if [[ -d "${observed_dir}" ]]; then
+    for observed_file in "${observed_dir}"/*; do
+      [[ -f "${observed_file}" ]] || continue
+      safe_name=$(basename "${observed_file}")
+      [[ "${safe_name}" == .* ]] && continue
+      real_name=$(tmux_agent_bar_decode_session_name "${safe_name}")
+      tmux has-session -t "${real_name}" 2>/dev/null || rm -f "${observed_file}"
+    done
+  fi
 }
