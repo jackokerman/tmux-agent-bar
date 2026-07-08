@@ -168,6 +168,23 @@ EOF
 )"
 
 run_case \
+    "external connector boundary stops stale working transcript" \
+    "codex" \
+    "" \
+    "$(cat <<'EOF'
+• Working (2m 27s • esc to interrupt)
+
+› Update the integration
+
+[11:27:19] pty-srv
+Session ID: abc123
+Host: remote.example
+Client: Waiting before next attempt
+Connector: disconnected
+EOF
+)"
+
+run_case \
     "codex current-turn working below completed boundary stays working" \
     "codex" \
     "working" \

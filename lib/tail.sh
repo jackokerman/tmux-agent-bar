@@ -91,6 +91,18 @@ tmux_codex_line_is_turn_complete_boundary() {
   [[ "${line}" == *"Worked for "* ]]
 }
 
+tmux_agent_line_is_external_terminal_boundary() {
+  local line="$1"
+
+  case "${line}" in
+    "Client: Waiting before next attempt"*|"Connector: disconnected"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 tmux_codex_line_is_status_footer() {
   local line="$1"
 
@@ -185,7 +197,8 @@ tmux_codex_infer_state_from_tail() {
   local tail="$1" line="" state="" hook="" completed_hooks=""
 
   while IFS= read -r line; do
-    if tmux_codex_line_is_turn_complete_boundary "${line}"; then
+    if tmux_codex_line_is_turn_complete_boundary "${line}" ||
+       tmux_agent_line_is_external_terminal_boundary "${line}"; then
       printf '%s\n' ""
       return 0
     fi
