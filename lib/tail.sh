@@ -91,6 +91,30 @@ tmux_codex_line_is_turn_complete_boundary() {
   [[ "${line}" == *"Worked for "* ]]
 }
 
+tmux_codex_line_is_status_footer() {
+  local line="$1"
+
+  [[ "${line}" =~ ^[[:space:]]*(gpt|o[0-9]|codex)[^[:space:]]*.*[[:space:]]·[[:space:]] ]]
+}
+
+tmux_codex_tail_has_agent_identity() {
+  local tail="$1" line="" marker_count=0
+
+  while IFS= read -r line; do
+    if tmux_codex_line_is_status_footer "${line}"; then
+      return 0
+    fi
+
+    case "${line}" in
+      "• Explored"*|"• Edited "*|"• Ran "*|"• Read "*|"• Search "*|"› "*|"  └ "*)
+        (( marker_count += 1 ))
+        ;;
+    esac
+  done < <(printf '%s\n' "${tail}" | tmux_agent_reverse_lines)
+
+  (( marker_count >= 2 ))
+}
+
 tmux_codex_line_is_working() {
   local line="$1"
 
@@ -222,24 +246,14 @@ tmux_agent_infer_state_from_tail() {
 }
 
 tmux_agent_infer_agent_state_from_tail() {
-  local tail="$1" agent="" state="" custom_infer="" seen_agents=""
+  local tail="$1" agent="" state="" identity_check=""
 
   for agent in "${TMUX_AGENT_BAR_AGENT_NAMES[@]}"; do
     [[ -n "${agent}" ]] || continue
-    custom_infer="tmux_${agent}_infer_state_from_tail"
-    declare -F "${custom_infer}" >/dev/null 2>&1 || continue
 
-    state=$("${custom_infer}" "${tail}")
-    if [[ -n "${state}" ]]; then
-      printf '%s\t%s\n' "${agent}" "${state}"
-      return 0
-    fi
-    seen_agents+=$'\n'"${agent}"
-  done
-
-  for agent in "${TMUX_AGENT_BAR_AGENT_NAMES[@]}"; do
-    [[ -n "${agent}" ]] || continue
-    if printf '%s\n' "${seen_agents}" | grep -Fqx "${agent}"; then
+    identity_check="tmux_${agent}_tail_has_agent_identity"
+    declare -F "${identity_check}" >/dev/null 2>&1 || continue
+    if ! "${identity_check}" "${tail}"; then
       continue
     fi
 
