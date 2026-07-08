@@ -509,6 +509,12 @@ tmux_session_status_emit_local_record() {
       if [[ "${state}" == "working" && -z "${live_state}" ]] && _state_file_has_stale_working "${state_file}"; then
         stale_working=1
       fi
+    elif _session_tail_identifies_agent "${session}" "${agent}"; then
+      has_known_agent_pane=1
+      live_state=$(_session_live_state "${session}" "${agent}")
+      if [[ "${state}" == "working" && -z "${live_state}" ]] && _state_file_has_stale_working "${state_file}"; then
+        stale_working=1
+      fi
     elif [[ "${state}" == "working" ]] && _state_file_has_stale_working "${state_file}"; then
       stale_working=1
     fi

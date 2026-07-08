@@ -83,6 +83,49 @@ run_shell_wrapped_done_identity_case() {
 run_shell_wrapped_done_identity_case \
     "explicit done shell-wrapped sessions stay visible when the tail identifies the agent"
 
+run_shell_wrapped_done_live_tail_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="done-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 1
+    }
+
+    _session_tail_identified_agent() {
+      printf '%s\n' "codex"
+    }
+
+    _session_has_known_agent_pane() {
+      return 1
+    }
+
+    _session_live_state() {
+      printf '%s\n' "working"
+    }
+
+    _state_file_mtime() {
+      printf '%s\n' "42"
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name}" \
+      $'done-shell\tcodex\tworking\tlocal_explicit\t42' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_done_live_tail_case \
+    "explicit done shell-wrapped sessions recover to working from the live tail"
+
 run_shell_wrapped_explicit_done_case() {
   local name="$1"
 
