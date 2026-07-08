@@ -298,7 +298,7 @@ EOF
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_equal \
       "${name}" \
-      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
+      "" \
       "${actual}"
 
     rm -rf "${tmp_dir}"
@@ -306,7 +306,7 @@ EOF
 }
 
 run_shell_wrapped_neutral_tail_case \
-    "shell-wrapped sessions without a local agent process render identified neutral tails as done"
+    "shell-wrapped sessions without a local agent process hide identified neutral tails"
 
 run_shell_wrapped_completed_tail_case() {
   local name="$1"
@@ -341,7 +341,7 @@ EOF
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_equal \
       "${name}" \
-      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
+      "" \
       "${actual}"
 
     rm -rf "${tmp_dir}"
@@ -349,7 +349,7 @@ EOF
 }
 
 run_shell_wrapped_completed_tail_case \
-    "shell-wrapped sessions without a local agent process render completed Codex tails as done"
+    "shell-wrapped sessions without a local agent process hide completed Codex tails"
 
 run_shell_wrapped_connector_tail_case() {
   local name="$1"

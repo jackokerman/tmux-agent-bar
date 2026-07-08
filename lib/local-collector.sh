@@ -513,11 +513,6 @@ tmux_session_status_emit_local_record() {
       [[ -n "${agent}" && -n "${state}" ]] || return 0
       updated_at=0
       source="local_fallback"
-    elif agent=$(_session_tail_identified_agent "${session}" 2>/dev/null); then
-      [[ -n "${agent}" ]] || return 0
-      state="done"
-      updated_at=0
-      source="local_fallback"
     else
       return 0
     fi
