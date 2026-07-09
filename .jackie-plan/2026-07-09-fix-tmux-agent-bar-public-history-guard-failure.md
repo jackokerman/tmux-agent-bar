@@ -1,9 +1,9 @@
 ---
 id: 2026-07-09-fix-tmux-agent-bar-public-history-guard-failure
 title: Fix tmux-agent-bar public-history guard failure
-state: inbox
+state: complete
 createdAt: 2026-07-09T00:32:22.026Z
-updatedAt: 2026-07-09T00:32:22.026Z
+updatedAt: 2026-07-09T00:47:46.957Z
 sourcePlan: 2026-07-08-audit-personal-tooling-test-drag
 ---
 
@@ -17,7 +17,7 @@ Make `/Users/jackokerman/src/tmux-agent-bar`'s routine `./scripts/check` pass fr
 
 ## Context
 
-During the `2026-07-08-audit-personal-tooling-test-drag` pruning pass, retained `tmux-agent-bar` tests passed, but the final `scripts/check-public-history` phase failed on reachable-history findings from older `.jackie-plan` commits that mention `tmux-agent-devvy-debug`.
+During the `2026-07-08-audit-personal-tooling-test-drag` pruning pass, retained `tmux-agent-bar` tests passed, but the final `scripts/check-public-history` phase failed on reachable-history findings from older `.jackie-plan` commits that mention a private source helper name.
 
 This was not introduced by the test deletions. It blocks a clean full check signal after unrelated work, so it should be handled separately from the test-pruning cleanup.
 

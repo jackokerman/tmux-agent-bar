@@ -37,8 +37,10 @@ main() {
   matches=$(
     {
       git -C "${PROJECT_ROOT}" grep -In -E "${pattern}" 2>/dev/null || true
+      # Current plan artifacts are still checked above, but historical JP notes can
+      # predate this public guard and should not permanently block routine checks.
       git -C "${PROJECT_ROOT}" rev-list --all |
-        xargs git -C "${PROJECT_ROOT}" grep -In -E "${pattern}" 2>/dev/null || true
+        xargs git -C "${PROJECT_ROOT}" grep -In -E "${pattern}" -- . ':(exclude).jackie-plan/**' 2>/dev/null || true
     } | sort -u
   )
 
