@@ -44,7 +44,7 @@ run_done_cleanup_case() {
 run_done_cleanup_case \
     "explicit done local session without a live agent is hidden and clears state"
 
-run_shell_wrapped_done_identity_case() {
+run_shell_wrapped_done_identity_cleanup_case() {
   local name="$1"
 
   (
@@ -71,21 +71,18 @@ run_shell_wrapped_done_identity_case() {
     }
 
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
-    assert_equal \
-      "${name}" \
-      $'done-shell\tcodex\tdone\tlocal_explicit\t42' \
-      "${actual}"
+    assert_equal "${name}" "" "${actual}"
 
-    if [[ ! -e "${STATE_DIR}/${session}" ]]; then
-      fail "${name} state file was removed"
+    if [[ -e "${STATE_DIR}/${session}" ]]; then
+      fail "${name} state file was not removed"
     fi
 
     rm -rf "${tmp_dir}"
   )
 }
 
-run_shell_wrapped_done_identity_case \
-    "explicit done shell-wrapped sessions stay visible when the tail identifies the agent"
+run_shell_wrapped_done_identity_cleanup_case \
+    "explicit done shell-wrapped sessions clear when no live agent process remains"
 
 run_shell_wrapped_stale_done_identity_case() {
   local name="$1"
@@ -128,7 +125,7 @@ run_shell_wrapped_stale_done_identity_case() {
 run_shell_wrapped_stale_done_identity_case \
     "stale explicit done shell-wrapped sessions are hidden even when old tail identifies the agent"
 
-run_shell_wrapped_done_live_tail_case() {
+run_shell_wrapped_done_no_process_live_tail_case() {
   local name="$1"
 
   (
@@ -159,17 +156,18 @@ run_shell_wrapped_done_live_tail_case() {
     }
 
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
-    assert_equal \
-      "${name}" \
-      $'done-shell\tcodex\tworking\tlocal_explicit\t42' \
-      "${actual}"
+    assert_equal "${name}" "" "${actual}"
+
+    if [[ -e "${STATE_DIR}/${session}" ]]; then
+      fail "${name} state file was not removed"
+    fi
 
     rm -rf "${tmp_dir}"
   )
 }
 
-run_shell_wrapped_done_live_tail_case \
-    "explicit done shell-wrapped sessions recover to working from the live tail"
+run_shell_wrapped_done_no_process_live_tail_case \
+    "explicit done shell-wrapped sessions ignore old working tail after the agent exits"
 
 run_shell_wrapped_explicit_done_case() {
   local name="$1"
@@ -267,6 +265,10 @@ run_shell_wrapped_fallback_case() {
 
     _session_agent_command() {
       printf '%s\n' "codex"
+    }
+
+    _session_has_live_agent_process() {
+      return 0
     }
 
     _session_live_state() {
@@ -544,19 +546,12 @@ EOF
     tail_mode="done"
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_equal \
-      "${name} then remains visible as done" \
-      $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
-      "${actual}"
-
-    touch -t 202001010000 "${observed_file}"
-    actual=$(tmux_session_status_emit_local_record "${session}" "current")
-    assert_equal \
-      "${name} eventually hides stale done marker" \
+      "${name} then clears completed fallback marker" \
       "" \
       "${actual}"
 
     if [[ -e "${observed_file}" ]]; then
-      fail "${name} stale observed marker was not removed"
+      fail "${name} observed marker was not removed"
     fi
 
     rm -rf "${tmp_dir}"
@@ -564,7 +559,7 @@ EOF
 }
 
 run_shell_wrapped_observed_completion_case \
-    "observed shell-wrapped fallback sessions stay visible when they complete"
+    "observed shell-wrapped fallback sessions clear when they complete"
 
 run_shell_wrapped_connector_tail_case() {
   local name="$1"
@@ -673,7 +668,7 @@ run_explicit_done_idle_case() {
 run_explicit_done_idle_case \
     "explicit done stays done when the live pane is idle"
 
-run_stale_explicit_done_idle_case() {
+run_explicit_done_process_exit_case() {
   local name="$1"
 
   (
@@ -682,10 +677,8 @@ run_stale_explicit_done_idle_case() {
     tmp_dir=$(mktemp -d)
     STATE_DIR="${tmp_dir}"
     printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
-    touch -t 202001010000 "${STATE_DIR}/${session}"
-
     _session_has_live_agent_process() {
-      return 0
+      return 1
     }
 
     _session_agent_command() {
@@ -707,8 +700,8 @@ run_stale_explicit_done_idle_case() {
   )
 }
 
-run_stale_explicit_done_idle_case \
-    "stale explicit done is hidden when the live pane is idle"
+run_explicit_done_process_exit_case \
+    "explicit done is hidden when the live agent process exits"
 
 run_working_live_inference_case() {
   local name="$1"
@@ -724,6 +717,10 @@ run_working_live_inference_case() {
 
     _session_agent_command() {
       printf '%s\n' "codex"
+    }
+
+    _session_has_live_agent_process() {
+      return 0
     }
 
     _session_live_state() {

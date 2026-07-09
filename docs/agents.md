@@ -19,15 +19,14 @@ Local pane inspection is a fallback, not a second writer. The collector uses it 
 
 The local precedence model is:
 
-1. A known explicit `done` row with no live agent process and no same-agent pane identity is removed and hidden.
-2. A same-agent live process or shell-wrapped tail identity lets live pane state reconcile the explicit row.
+1. A known explicit row with no live same-agent process is removed and hidden. Old scrollback cannot keep local explicit state alive after the agent exits.
+2. A same-agent live process lets live pane state reconcile the explicit row.
 3. If the live pane belongs to a different registered agent command, the explicit row resolves as `done`.
 4. A visible current waiting prompt resolves as `waiting`, even over explicit `working` or `done`.
 5. A visible current working marker can render an explicit `done` row as `working`.
-6. A stale explicit `done` row with no current live marker is removed and hidden, even if old scrollback still identifies the agent.
-7. Stale explicit `working` with no current live marker resolves as `done`.
-8. A live agent pane with no explicit state emits a `local_fallback` row only from active live inference.
-9. A shell-wrapped pane with no explicit row and no live agent process emits a fallback row for an inferred active or waiting state. Once observed active, the same pane stays visible as `done` briefly when the tail becomes neutral or completed.
-10. No explicit row and no live agent pane emits nothing.
+6. Stale explicit `working` with no current live marker resolves as `done`.
+7. A live agent pane with no explicit state emits a `local_fallback` row only from active live inference.
+8. A shell-wrapped pane with no explicit row and no live agent process emits a fallback row only for an inferred active or waiting state. When that evidence disappears, the observed fallback marker is cleared.
+9. No explicit row and no live agent pane emits nothing.
 
 Source modules should emit normalized rows through the registered source contract. Replacement sources may shadow local rows; additive sources should emit their own rows without relying on renderer-specific side effects.

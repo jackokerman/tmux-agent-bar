@@ -121,8 +121,7 @@ The local collector also keeps bounded observation markers under:
 ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/observed-sessions/
 ```
 
-Those markers are written after a shell-wrapped session is observed in an active or waiting fallback state, so the same session can remain visible as `done` after completion. Orphan markers are pruned when their tmux session no longer exists.
-Completed explicit rows and observed markers are intentionally time-bounded. By default, a neutral `done` row older than `${TMUX_AGENT_DONE_TTL:-300}` seconds is treated as stale and removed so old scrollback or idle prompts do not stay in the bar forever.
+Those markers are written after a shell-wrapped session is observed in an active or waiting fallback state. They are cleared when that pane no longer has active fallback evidence, so old scrollback does not keep a completed agent in the bar. Orphan markers are also pruned when their tmux session no longer exists.
 
 `remote-rows.tsv` uses the normalized five-column row format:
 

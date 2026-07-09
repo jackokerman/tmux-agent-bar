@@ -500,22 +500,10 @@ _session_clear_observed_agent() {
   rm -f "$(_session_observed_agent_file "${session}")"
 }
 
-_session_has_stale_observed_agent() {
-  local session="$1"
-
-  tmux_agent_state_is_stale_done "$(_session_observed_agent_file "${session}")"
-}
-
 _state_file_has_stale_working() {
   local state_file="$1"
 
   tmux_agent_state_is_stale_working "${state_file}"
-}
-
-_state_file_has_stale_done() {
-  local state_file="$1"
-
-  tmux_agent_state_is_stale_done "${state_file}"
 }
 
 _state_file_mtime() {
@@ -538,6 +526,12 @@ tmux_session_status_emit_local_record() {
   if [[ -f "${state_file}" ]]; then
     IFS=$'\t' read -r agent state < <(_read_state_record "${state_file}")
 
+    if tmux_agent_bar_command_for_agent "${agent}" >/dev/null 2>&1 && \
+       ! _session_has_live_agent_process "${session}" "${agent}"; then
+      rm -f "${state_file}"
+      return 0
+    fi
+
     if _session_has_known_agent_pane "${session}"; then
       has_known_agent_pane=1
       active_agent=$(_session_agent_command "${session}" 2>/dev/null || true)
@@ -558,17 +552,6 @@ tmux_session_status_emit_local_record() {
       stale_working=1
     fi
 
-    if [[ "${state}" == "done" ]] && tmux_agent_bar_command_for_agent "${agent}" >/dev/null 2>&1 && \
-       [[ "${has_known_agent_pane}" != "1" ]]; then
-      rm -f "${state_file}"
-      return 0
-    fi
-
-    if [[ "${state}" == "done" && -z "${live_state}" ]] && _state_file_has_stale_done "${state_file}"; then
-      rm -f "${state_file}"
-      return 0
-    fi
-
     state=$(tmux_session_status_resolve_state "${state}" "${live_state}" "${has_known_agent_pane}" "${stale_working}" "${agent_mismatch}")
     [[ -n "${state}" ]] || return 0
 
@@ -583,14 +566,8 @@ tmux_session_status_emit_local_record() {
       source="local_fallback"
     elif observed_agent=$(_session_observed_agent "${session}" 2>/dev/null) && \
        _session_tail_identifies_agent "${session}" "${observed_agent}"; then
-      if _session_has_stale_observed_agent "${session}"; then
-        _session_clear_observed_agent "${session}"
-        return 0
-      fi
-      agent="${observed_agent}"
-      state="done"
-      updated_at=0
-      source="local_fallback"
+      _session_clear_observed_agent "${session}"
+      return 0
     else
       return 0
     fi
