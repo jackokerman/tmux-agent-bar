@@ -24,9 +24,10 @@ The local precedence model is:
 3. If the live pane belongs to a different registered agent command, the explicit row resolves as `done`.
 4. A visible current waiting prompt resolves as `waiting`, even over explicit `working` or `done`.
 5. A visible current working marker can render an explicit `done` row as `working`.
-6. Stale explicit `working` with no current live marker resolves as `done`.
-7. A live agent pane with no explicit state emits a `local_fallback` row from live inference, or `done` when the live pane is neutral.
-8. A shell-wrapped pane with no explicit row and no live agent process emits a fallback row for an inferred active or waiting state. Once observed active, the same pane stays visible as `done` when the tail becomes neutral or completed.
-9. No explicit row and no live agent pane emits nothing.
+6. A stale explicit `done` row with no current live marker is removed and hidden, even if old scrollback still identifies the agent.
+7. Stale explicit `working` with no current live marker resolves as `done`.
+8. A live agent pane with no explicit state emits a `local_fallback` row only from active live inference.
+9. A shell-wrapped pane with no explicit row and no live agent process emits a fallback row for an inferred active or waiting state. Once observed active, the same pane stays visible as `done` briefly when the tail becomes neutral or completed.
+10. No explicit row and no live agent pane emits nothing.
 
 Source modules should emit normalized rows through the registered source contract. Replacement sources may shadow local rows; additive sources should emit their own rows without relying on renderer-specific side effects.

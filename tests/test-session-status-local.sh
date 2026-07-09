@@ -87,6 +87,47 @@ run_shell_wrapped_done_identity_case() {
 run_shell_wrapped_done_identity_case \
     "explicit done shell-wrapped sessions stay visible when the tail identifies the agent"
 
+run_shell_wrapped_stale_done_identity_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="done-shell" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+    touch -t 202001010000 "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 1
+    }
+
+    _session_tail_identified_agent() {
+      printf '%s\n' "codex"
+    }
+
+    _session_has_known_agent_pane() {
+      return 1
+    }
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal "${name}" "" "${actual}"
+
+    if [[ -e "${STATE_DIR}/${session}" ]]; then
+      fail "${name} state file was not removed"
+    fi
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_shell_wrapped_stale_done_identity_case \
+    "stale explicit done shell-wrapped sessions are hidden even when old tail identifies the agent"
+
 run_shell_wrapped_done_live_tail_case() {
   local name="$1"
 
@@ -507,6 +548,17 @@ EOF
       $'review-shell\tcodex\tdone\tlocal_fallback\t0' \
       "${actual}"
 
+    touch -t 202001010000 "${observed_file}"
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal \
+      "${name} eventually hides stale done marker" \
+      "" \
+      "${actual}"
+
+    if [[ -e "${observed_file}" ]]; then
+      fail "${name} stale observed marker was not removed"
+    fi
+
     rm -rf "${tmp_dir}"
   )
 }
@@ -572,7 +624,7 @@ run_idle_fallback_done_case() {
     actual=$(tmux_session_status_emit_local_record "${session}" "current")
     assert_equal \
       "${name}" \
-      $'idle-fallback\tcodex\tdone\tlocal_fallback\t0' \
+      "" \
       "${actual}"
 
     rm -rf "${tmp_dir}"
@@ -580,7 +632,7 @@ run_idle_fallback_done_case() {
 }
 
 run_idle_fallback_done_case \
-    "fallback sessions stay visible as done when the live pane is neutral"
+    "fallback sessions stay hidden when the live pane is neutral"
 
 run_explicit_done_idle_case() {
   local name="$1"
@@ -620,6 +672,43 @@ run_explicit_done_idle_case() {
 
 run_explicit_done_idle_case \
     "explicit done stays done when the live pane is idle"
+
+run_stale_explicit_done_idle_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" session="done-idle" actual=""
+
+    tmp_dir=$(mktemp -d)
+    STATE_DIR="${tmp_dir}"
+    printf 'codex\tdone\n' > "${STATE_DIR}/${session}"
+    touch -t 202001010000 "${STATE_DIR}/${session}"
+
+    _session_has_live_agent_process() {
+      return 0
+    }
+
+    _session_agent_command() {
+      printf '%s\n' "codex"
+    }
+
+    _session_live_state() {
+      printf '%s\n' ""
+    }
+
+    actual=$(tmux_session_status_emit_local_record "${session}" "current")
+    assert_equal "${name}" "" "${actual}"
+
+    if [[ -e "${STATE_DIR}/${session}" ]]; then
+      fail "${name} state file was not removed"
+    fi
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_stale_explicit_done_idle_case \
+    "stale explicit done is hidden when the live pane is idle"
 
 run_working_live_inference_case() {
   local name="$1"
@@ -761,7 +850,7 @@ EOF
     chmod +x "${tmp_dir}/bin/ps"
 
     _session_live_state() {
-      printf '%s\n' ""
+      printf '%s\n' "working"
     }
 
     actual=$(
@@ -773,7 +862,7 @@ EOF
 
     assert_equal \
       "${name}" \
-      $'direct-agent\tcodex\tdone\tlocal_fallback\t0\nwrapped agent\tcodex\tdone\tlocal_fallback\t0' \
+      $'direct-agent\tcodex\tworking\tlocal_fallback\t0\nwrapped agent\tcodex\tworking\tlocal_fallback\t0' \
       "${actual}"
 
     list_sessions_calls=$(grep -c '^list-sessions -F ' "${tmp_dir}/tmux.log" || true)
@@ -839,7 +928,7 @@ EOF
     chmod +x "${tmp_dir}/bin/ps"
 
     _session_live_state() {
-      printf '%s\n' ""
+      printf '%s\n' "working"
     }
 
     actual=$(
@@ -850,7 +939,7 @@ EOF
 
     assert_equal \
       "${name}" \
-      $'picked-agent\tcodex\tdone\tlocal_fallback\t0' \
+      $'picked-agent\tcodex\tworking\tlocal_fallback\t0' \
       "${actual}"
 
     ps_calls=$(wc -l < "${tmp_dir}/ps.log" | tr -d '[:space:]')
@@ -902,7 +991,7 @@ EOF
     chmod +x "${tmp_dir}/bin/ps"
 
     _session_live_state() {
-      printf '%s\n' ""
+      printf '%s\n' "working"
     }
 
     actual=$(
@@ -913,7 +1002,7 @@ EOF
 
     assert_equal \
       "${name}" \
-      $'direct-agent\tcodex\tdone\tlocal_fallback\t0' \
+      $'direct-agent\tcodex\tworking\tlocal_fallback\t0' \
       "${actual}"
 
     if [[ -f "${tmp_dir}/ps.log" ]]; then

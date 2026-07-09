@@ -75,6 +75,18 @@ tmux_agent_state_is_stale_working() {
   (( now - mtime > ttl ))
 }
 
+tmux_agent_state_is_stale_done() {
+  local state_file="$1" ttl="${2:-${TMUX_AGENT_DONE_TTL:-300}}" mtime="" now=""
+
+  [[ -f "${state_file}" ]] || return 1
+
+  mtime=$(tmux_agent_state_file_mtime "${state_file}" 2>/dev/null || true)
+  [[ "${mtime}" =~ ^[0-9]+$ ]] || return 1
+
+  now=$(date +%s)
+  (( now - mtime > ttl ))
+}
+
 _decode_session_name() {
   tmux_agent_bar_decode_session_name "$1"
 }

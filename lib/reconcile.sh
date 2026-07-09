@@ -30,11 +30,7 @@ tmux_session_status_resolve_state() {
     return 0
   fi
 
-  if [[ -n "${live_state}" ]]; then
-    printf '%s\n' "${live_state}"
-  else
-    printf '%s\n' "done"
-  fi
+  printf '%s\n' "${live_state}"
 }
 
 tmux_agent_bar_reconcile_remote_state() {

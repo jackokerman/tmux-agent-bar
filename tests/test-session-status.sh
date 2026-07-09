@@ -101,13 +101,13 @@ run_case \
     "waiting"
 
 run_case \
-    "sessions without explicit state fall back to done when the agent is still attached" \
+    "sessions without explicit state stay hidden when the live parser is neutral" \
     "" \
     "" \
     "1" \
     "0" \
     "0" \
-    "done"
+    ""
 
 run_case \
     "sessions without agent panes stay hidden" \
