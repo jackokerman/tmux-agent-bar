@@ -3,7 +3,7 @@ id: 2026-06-25-tmux-agent-bar-follow-ups-after-hook-runtime-fix
 title: Stabilize tmux-agent-bar state model
 state: inbox
 createdAt: 2026-06-25T15:46:58.869Z
-updatedAt: 2026-07-08T22:52:11.194Z
+updatedAt: 2026-07-09T18:23:31.661Z
 sourcePlan: 2026-06-24-harden-tmux-agent-bar-state-model
 ---
 
@@ -37,6 +37,7 @@ Important facts:
 - Tail inference is still needed for prompt states that hooks do not expose, especially in-turn questions and plan confirmation prompts.
 - Tail inference must stay identity-gated and boundary-aware. Prefer missing a fallback row over rendering stale transcript text as active work.
 - Remote transport and cache population stay outside this public runtime. Source modules emit normalized rows; replacement sources may shadow local rows; additive sources must not shadow.
+- Remote or connector-backed source probes are inherently brittle even when timeout-bounded. A failing source should degrade to cached rows or no row without making tmux attach, client switching, or cached status rendering feel blocked.
 - The renderer should keep formatting, current-session filtering, deduplication, ordering, and truncation concerns separate from state interpretation.
 - The repo check currently has a non-runtime public-history failure from reachable plan history. Settle that verification baseline before shipping runtime changes so `./scripts/check` is once again a reliable safety gate.
 
@@ -173,9 +174,10 @@ Candidates:
 
 - Make shell-wrapper inference run only when the pane command is a known wrapper and either process ancestry or tail identity provides same-agent evidence.
 - Keep external terminal, connector, and retry screens as hard boundaries that prevent stale transcript inference.
+- Treat source refresh latency as part of the state contract. Cached render paths must not run source refresh hooks, and fresh refresh paths should preserve stale-good rows or fail closed when a connector-backed source cannot initialize quickly.
 - Consider an explicit public registration path for nonstandard agent command aliases instead of widening built-in command matching.
 - Re-check current Codex hook docs before expanding or preserving tail-based waiting inference. If a dedicated waiting/input hook exists later, remove or narrow the tail heuristic instead of keeping both systems.
-- Add a focused performance test around snapshot collection when any change affects `tmux list-panes`, `ps`, or per-session tail capture counts.
+- Add a focused performance test around snapshot collection when any change affects `tmux list-panes`, `ps`, per-session tail capture counts, or source-refresh timing.
 
 Each fallback change needs paired tests:
 
