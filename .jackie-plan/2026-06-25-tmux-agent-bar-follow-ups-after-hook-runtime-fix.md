@@ -3,7 +3,7 @@ id: 2026-06-25-tmux-agent-bar-follow-ups-after-hook-runtime-fix
 title: Stabilize tmux-agent-bar state model
 state: ready-to-implement
 createdAt: 2026-06-25T15:46:58.869Z
-updatedAt: 2026-07-09T23:39:49.924Z
+updatedAt: 2026-07-10T00:53:31.189Z
 sourcePlan: 2026-06-24-harden-tmux-agent-bar-state-model
 ---
 
@@ -483,14 +483,19 @@ The earlier public-history guard follow-up `2026-07-09-fix-tmux-agent-bar-public
 
 ## Agent handoff
 
-Final planning refinement captured the implementation-session expectations:
+Implemented the next reviewable step for Phase 1 after confirming the Phase 0 baseline.
 
-- The plan is intended to be executable mostly autonomously in one focused implementation session, without stopping for routine per-phase user review.
-- Escalation should be limited to baseline check failures, ambiguous user-visible behavior choices, adapter-boundary violations, public contract changes, or inability to leave the runtime usable.
-- The cutover must stay contained because the tool is still in active use: preserve existing hook commands, state paths, source/cache/shadowing artifacts, render/current-state commands, status-bar consumers, and session picker/status consumers while refactoring internals.
-- Use the canonical source checkout for implementation handoff, not the duplicate planning checkout used in this session. If the canonical checkout is also the live runtime path, do runtime edits in a temporary git worktree and only advance the live runtime checkout after checks pass.
-- After a safe cutover, remove or archive the old duplicate planning checkout so future work and runtime wrappers converge on one checkout.
-- Add contract tests and the read-only explain path first, then refactor behind the existing CLI/config surface. Do not leave a half-switched state model between phases.
-- Keep checked-in core code work-agnostic and machine-agnostic. Private transport, host discovery, launcher behavior, connector details, and adapter command invocation remain outside this public repo and feed only generic rows/artifacts into core.
-- Before live cutover, run the public suite plus available wrapper/private-adapter integration tests that cover canonical path resolution, checkout sync behavior, shared renderer integration, and private source adapter behavior.
-- `./scripts/check` passed during planning after the autonomy/cutover constraints were added.
+Completed:
+- Confirmed fresh persisted state was `ready-to-implement` with `jp show 2026-06-25-tmux-agent-bar-follow-ups-after-hook-runtime-fix --json`.
+- Confirmed the pre-change baseline was green with `./scripts/check`.
+- Added `tests/test-state-contract.sh` as a table-driven local state contract covering explicit hook state, live local evidence, stale working expiry, agent mismatch, direct fallback, shell-wrapped tail fallback, observed wrapped-session cleanup, shadowing, duplicate source precedence, cached no-refresh behavior, and generic adapter/cache/shadowing artifacts.
+- Wired the new contract test into `scripts/check`.
+- While running the new adapter-boundary contract, exposed an existing blank-row quirk in `tmux_agent_bar_print_record_bucket` when earlier state buckets were empty; fixed it by skipping empty records before printing.
+
+Verification:
+- `./tests/test-state-contract.sh` passes.
+- Focused runtime tests pass: `./tests/test-pane-state.sh`, `./tests/test-session-status-local.sh`, and `./tests/test-session-status.sh`.
+- Full `./scripts/check` passes.
+
+Next honest step:
+- Start Phase 2 by adding the read-only `bin/tmux-agent-bar explain <session>` and `explain-cached <session>` diagnostic path, using the new contract cases as guardrails and preserving cached no-refresh/no-side-effect behavior.

@@ -25,6 +25,7 @@ tmux_agent_bar_print_record_bucket() {
   local record=""
 
   for record in "$@"; do
+    [[ -n "${record}" ]] || continue
     printf '%s\n' "${record}"
   done
 }
