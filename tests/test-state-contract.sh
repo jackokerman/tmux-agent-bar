@@ -193,7 +193,7 @@ run_local_contract_case \
   "keep_state"
 
 run_local_contract_case \
-  "explicit working with visible waiting renders waiting" \
+  "explicit working with visible waiting renders done" \
   "codex" \
   "working" \
   "1" \
@@ -206,11 +206,11 @@ run_local_contract_case \
   "" \
   "" \
   "0" \
-  $'contract-session\tcodex\twaiting\tlocal_explicit\t42' \
+  $'contract-session\tcodex\tdone\tlocal_explicit\t42' \
   "keep_state"
 
 run_local_contract_case \
-  "explicit done with visible waiting renders waiting" \
+  "explicit done with visible waiting renders done" \
   "codex" \
   "done" \
   "1" \
@@ -223,7 +223,7 @@ run_local_contract_case \
   "" \
   "" \
   "0" \
-  $'contract-session\tcodex\twaiting\tlocal_explicit\t42' \
+  $'contract-session\tcodex\tdone\tlocal_explicit\t42' \
   "keep_state"
 
 run_local_contract_case \
@@ -278,7 +278,7 @@ run_local_contract_case \
   "none"
 
 run_local_contract_case \
-  "direct live agent pane with waiting evidence emits local fallback" \
+  "direct live agent pane with waiting evidence emits done fallback" \
   "" \
   "" \
   "1" \
@@ -291,7 +291,7 @@ run_local_contract_case \
   "" \
   "" \
   "0" \
-  $'contract-session\tcodex\twaiting\tlocal_fallback\t0' \
+  $'contract-session\tcodex\tdone\tlocal_fallback\t0' \
   "none"
 
 run_local_contract_case \
@@ -409,7 +409,7 @@ run_source_precedence_contract_case() {
     actual=$(tmux_agent_bar_emit_prioritized_records "current")
     assert_equal \
       "duplicate local and source-provided rows preserve first-row precedence" \
-      $'source-only\tcodex\twaiting\tgeneric_source\t30\nsource-owned\tcodex\tworking\tlocal_explicit\t10' \
+      $'source-owned\tcodex\tworking\tlocal_explicit\t10\nsource-only\tcodex\tdone\tgeneric_source\t30' \
       "${actual}"
   )
 }

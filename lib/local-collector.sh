@@ -514,75 +514,222 @@ _state_file_mtime() {
   printf '%s\n' "${updated_at}"
 }
 
-tmux_session_status_emit_local_record() {
-  local session="$1" current="$2" state="" active_agent="" agent="" live_state=""
-  local has_known_agent_pane=0 stale_working=0 agent_mismatch=0 state_file="" updated_at=0 source="" observed_agent=""
+tmux_agent_bar_reset_local_evidence() {
+  TMUX_AGENT_BAR_LOCAL_SESSION=""
+  TMUX_AGENT_BAR_LOCAL_HAS_EXPLICIT="false"
+  TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT=""
+  TMUX_AGENT_BAR_LOCAL_EXPLICIT_STATE=""
+  TMUX_AGENT_BAR_LOCAL_EXPLICIT_MTIME=""
+  TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT_REGISTERED="false"
+  TMUX_AGENT_BAR_LOCAL_HAS_LIVE_AGENT_PROCESS="false"
+  TMUX_AGENT_BAR_LOCAL_HAS_KNOWN_AGENT_PANE="false"
+  TMUX_AGENT_BAR_LOCAL_LIVE_AGENT=""
+  TMUX_AGENT_BAR_LOCAL_LIVE_STATE=""
+  TMUX_AGENT_BAR_LOCAL_TAIL_AGENT=""
+  TMUX_AGENT_BAR_LOCAL_TAIL_STATE=""
+  TMUX_AGENT_BAR_LOCAL_STALE_WORKING="false"
+  TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT=""
+  TMUX_AGENT_BAR_LOCAL_SHADOWED="false"
+}
 
-  [[ "${session}" != "${current}" ]] || return 0
-  _session_is_shadowed "${session}" && return 0
+tmux_agent_bar_reset_local_resolution() {
+  TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD=""
+  TMUX_AGENT_BAR_EXPLAIN_LOCAL_RESOLUTION="hidden"
+  TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS="none"
+  TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECT_AGENT=""
+  TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="no_local_evidence"
+}
+
+tmux_agent_bar_collect_local_evidence() {
+  local session="$1" agent="" state="" state_file=""
+
+  tmux_agent_bar_reset_local_evidence
+  TMUX_AGENT_BAR_LOCAL_SESSION="${session}"
+
+  if _session_is_shadowed "${session}"; then
+    TMUX_AGENT_BAR_LOCAL_SHADOWED="true"
+    return 0
+  fi
 
   state_file=$(tmux_agent_bar_state_file_path "${session}")
 
   if [[ -f "${state_file}" ]]; then
     IFS=$'\t' read -r agent state < <(_read_state_record "${state_file}")
+    TMUX_AGENT_BAR_LOCAL_HAS_EXPLICIT="true"
+    TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT="${agent}"
+    TMUX_AGENT_BAR_LOCAL_EXPLICIT_STATE="${state}"
+    TMUX_AGENT_BAR_LOCAL_EXPLICIT_MTIME=$(_state_file_mtime "${state_file}")
 
-    if tmux_agent_bar_command_for_agent "${agent}" >/dev/null 2>&1 && \
-       ! _session_has_live_agent_process "${session}" "${agent}"; then
-      rm -f "${state_file}"
-      return 0
+    if tmux_agent_bar_command_for_agent "${agent}" >/dev/null 2>&1; then
+      TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT_REGISTERED="true"
+      if _session_has_live_agent_process "${session}" "${agent}"; then
+        TMUX_AGENT_BAR_LOCAL_HAS_LIVE_AGENT_PROCESS="true"
+      else
+        return 0
+      fi
     fi
 
     if _session_has_known_agent_pane "${session}"; then
+      TMUX_AGENT_BAR_LOCAL_HAS_KNOWN_AGENT_PANE="true"
+      TMUX_AGENT_BAR_LOCAL_LIVE_AGENT=$(_session_agent_command "${session}" 2>/dev/null || true)
+      TMUX_AGENT_BAR_LOCAL_LIVE_STATE=$(_session_live_state "${session}" "${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT:-${agent}}")
+    else
+      if _session_tail_identifies_agent "${session}" "${agent}"; then
+        TMUX_AGENT_BAR_LOCAL_TAIL_AGENT="${agent}"
+        TMUX_AGENT_BAR_LOCAL_LIVE_STATE=$(_session_live_state "${session}" "${agent}")
+      else
+        TMUX_AGENT_BAR_LOCAL_TAIL_AGENT=$(_session_tail_identified_agent "${session}" 2>/dev/null || true)
+      fi
+    fi
+
+    if [[ "${state}" == "working" && -z "${TMUX_AGENT_BAR_LOCAL_LIVE_STATE}" ]] && \
+       _state_file_has_stale_working "${state_file}"; then
+      TMUX_AGENT_BAR_LOCAL_STALE_WORKING="true"
+    fi
+
+    return 0
+  fi
+
+  if _session_has_known_agent_pane "${session}"; then
+    TMUX_AGENT_BAR_LOCAL_HAS_KNOWN_AGENT_PANE="true"
+    TMUX_AGENT_BAR_LOCAL_LIVE_AGENT=$(_session_agent_command "${session}" 2>/dev/null || true)
+    TMUX_AGENT_BAR_LOCAL_LIVE_STATE=$(_session_live_state "${session}" "${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT}")
+    return 0
+  fi
+
+  TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT=$(_session_observed_agent "${session}" 2>/dev/null || true)
+  if IFS=$'\t' read -r agent state < <(_session_tail_inferred_agent_state "${session}"); then
+    if [[ -n "${agent}" && -n "${state}" ]]; then
+      TMUX_AGENT_BAR_LOCAL_TAIL_AGENT="${agent}"
+      TMUX_AGENT_BAR_LOCAL_TAIL_STATE="${state}"
+    fi
+  else
+    if [[ -n "${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}" ]] && \
+       _session_tail_identifies_agent "${session}" "${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}"; then
+      TMUX_AGENT_BAR_LOCAL_TAIL_AGENT="${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}"
+    else
+      TMUX_AGENT_BAR_LOCAL_TAIL_AGENT=$(_session_tail_identified_agent "${session}" 2>/dev/null || true)
+    fi
+  fi
+}
+
+tmux_agent_bar_resolve_local_evidence() {
+  local session="" agent="" state="" active_agent="" has_known_agent_pane=0 stale_working=0 agent_mismatch=0
+
+  tmux_agent_bar_reset_local_resolution
+
+  session="${TMUX_AGENT_BAR_LOCAL_SESSION}"
+  if [[ "${TMUX_AGENT_BAR_LOCAL_SHADOWED}" == "true" ]]; then
+    TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="shadowed"
+    return 0
+  fi
+
+  if [[ "${TMUX_AGENT_BAR_LOCAL_HAS_EXPLICIT}" == "true" ]]; then
+    agent="${TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT}"
+    state="${TMUX_AGENT_BAR_LOCAL_EXPLICIT_STATE}"
+
+    if [[ "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT_REGISTERED}" == "true" && \
+          "${TMUX_AGENT_BAR_LOCAL_HAS_LIVE_AGENT_PROCESS}" != "true" ]]; then
+      TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS="delete_explicit_state"
+      TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="explicit_agent_not_live"
+      return 0
+    fi
+
+    if [[ "${TMUX_AGENT_BAR_LOCAL_HAS_KNOWN_AGENT_PANE}" == "true" ]]; then
       has_known_agent_pane=1
-      active_agent=$(_session_agent_command "${session}" 2>/dev/null || true)
+      active_agent="${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT}"
       if [[ -n "${active_agent}" && "${active_agent}" != "${agent}" ]]; then
         agent_mismatch=1
       fi
-      live_state=$(_session_live_state "${session}" "${active_agent:-${agent}}")
-      if [[ "${state}" == "working" && -z "${live_state}" ]] && _state_file_has_stale_working "${state_file}"; then
-        stale_working=1
-      fi
-    elif _session_tail_identifies_agent "${session}" "${agent}"; then
+    elif [[ -n "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}" && "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}" == "${agent}" ]]; then
       has_known_agent_pane=1
-      live_state=$(_session_live_state "${session}" "${agent}")
-      if [[ "${state}" == "working" && -z "${live_state}" ]] && _state_file_has_stale_working "${state_file}"; then
-        stale_working=1
-      fi
-    elif [[ "${state}" == "working" ]] && _state_file_has_stale_working "${state_file}"; then
+    fi
+
+    if [[ "${TMUX_AGENT_BAR_LOCAL_STALE_WORKING}" == "true" ]]; then
       stale_working=1
     fi
 
-    state=$(tmux_session_status_resolve_state "${state}" "${live_state}" "${has_known_agent_pane}" "${stale_working}" "${agent_mismatch}")
-    [[ -n "${state}" ]] || return 0
-
-    updated_at=$(_state_file_mtime "${state_file}")
-    source="local_explicit"
-    agent="${active_agent:-${agent}}"
-  elif ! _session_has_known_agent_pane "${session}"; then
-    if IFS=$'\t' read -r agent state < <(_session_tail_inferred_agent_state "${session}"); then
-      [[ -n "${agent}" && -n "${state}" ]] || return 0
-      _session_mark_observed_agent "${session}" "${agent}"
-      updated_at=0
-      source="local_fallback"
-    elif observed_agent=$(_session_observed_agent "${session}" 2>/dev/null) && \
-       _session_tail_identifies_agent "${session}" "${observed_agent}"; then
-      _session_clear_observed_agent "${session}"
-      return 0
-    else
+    state=$(tmux_session_status_resolve_state "${state}" "${TMUX_AGENT_BAR_LOCAL_LIVE_STATE}" "${has_known_agent_pane}" "${stale_working}" "${agent_mismatch}")
+    if [[ -z "${state}" ]]; then
+      TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="explicit_resolved_hidden"
       return 0
     fi
-  else
-    agent=$(_session_agent_command "${session}" 2>/dev/null || true)
-    live_state=$(_session_live_state "${session}" "${agent}")
-    [[ -n "${live_state}" ]] || return 0
-    state=$(tmux_session_status_resolve_state "" "${live_state}" 1 0 0)
-    [[ -n "${state}" ]] || return 0
 
-    updated_at=0
-    source="local_fallback"
+    agent="${active_agent:-${agent}}"
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD="${session}"$'\t'"${agent}"$'\t'"${state}"$'\tlocal_explicit\t'"${TMUX_AGENT_BAR_LOCAL_EXPLICIT_MTIME}"
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RESOLUTION="selected"
+    TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="local_explicit"
+    return 0
   fi
 
-  tmux_session_status_emit_record "${session}" "${agent}" "${state}" "${source}" "${updated_at}"
+  if [[ "${TMUX_AGENT_BAR_LOCAL_HAS_KNOWN_AGENT_PANE}" == "true" ]]; then
+    if [[ -z "${TMUX_AGENT_BAR_LOCAL_LIVE_STATE}" ]]; then
+      TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="live_agent_neutral"
+      return 0
+    fi
+
+    state=$(tmux_session_status_resolve_state "" "${TMUX_AGENT_BAR_LOCAL_LIVE_STATE}" 1 0 0)
+    if [[ -z "${state}" ]]; then
+      TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="live_agent_resolved_hidden"
+      return 0
+    fi
+
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD="${session}"$'\t'"${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT}"$'\t'"${state}"$'\tlocal_fallback\t0'
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RESOLUTION="selected"
+    TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="live_fallback"
+    return 0
+  fi
+
+  if [[ -n "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}" && -n "${TMUX_AGENT_BAR_LOCAL_TAIL_STATE}" ]]; then
+    state=$(tmux_agent_bar_display_state "${TMUX_AGENT_BAR_LOCAL_TAIL_STATE}")
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD="${session}"$'\t'"${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}"$'\t'"${state}"$'\tlocal_fallback\t0'
+    TMUX_AGENT_BAR_EXPLAIN_LOCAL_RESOLUTION="selected"
+    TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS="write_observed_agent"
+    TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECT_AGENT="${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}"
+    TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="tail_fallback"
+    return 0
+  fi
+
+  if [[ -n "${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}" && \
+        -n "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}" && \
+        "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}" == "${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}" ]]; then
+    TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS="clear_observed_agent"
+    TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON="observed_agent_neutral"
+  fi
+}
+
+tmux_agent_bar_collect_local_explain() {
+  tmux_agent_bar_collect_local_evidence "$1"
+  tmux_agent_bar_resolve_local_evidence
+}
+
+tmux_agent_bar_apply_local_resolution_effects() {
+  local session="$1"
+
+  case "${TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS}" in
+    delete_explicit_state)
+      rm -f "$(tmux_agent_bar_state_file_path "${session}")"
+      ;;
+    write_observed_agent)
+      _session_mark_observed_agent "${session}" "${TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECT_AGENT}"
+      ;;
+    clear_observed_agent)
+      _session_clear_observed_agent "${session}"
+      ;;
+  esac
+}
+
+tmux_session_status_emit_local_record() {
+  local session="$1" current="$2"
+
+  [[ "${session}" != "${current}" ]] || return 0
+
+  tmux_agent_bar_collect_local_evidence "${session}"
+  tmux_agent_bar_resolve_local_evidence
+  tmux_agent_bar_apply_local_resolution_effects "${session}"
+
+  [[ -n "${TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD}" ]] || return 0
+  printf '%s\n' "${TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD}"
 }
 
 tmux_session_status_local_emit_records() {

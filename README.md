@@ -2,12 +2,12 @@
 
 Status-line-first agent status tracking for tmux sessions.
 
-`tmux-agent-bar` renders a compact tmux status segment for your other sessions so you can see which agent panes are working, waiting for input, or done without switching away from your current session. It is launcher-agnostic: hooks, local pane inspection, and optional source modules all write the same generic state records.
+`tmux-agent-bar` renders a compact tmux status segment for your other sessions so you can see which agent panes are working or ready for you to check without switching away from your current session. It is launcher-agnostic: hooks, local pane inspection, and optional source modules all write the same generic state records.
 
 ## What it does
 
-- Renders `working`, `waiting`, and `done` state for non-current tmux sessions.
-- Orders compact `status-right` output for right-to-left scanning: `waiting` sessions sit at the right edge, `done` sessions come next, and `working` sessions sit behind them. Within each state, older timestamped rows stay ahead of newer rows.
+- Renders `working` and `done` state for non-current tmux sessions. `waiting` input is accepted but displays as `done`.
+- Orders compact `status-right` output for right-to-left scanning: `done` sessions sit at the right edge, and `working` sessions sit behind them. Within each state, older timestamped rows stay ahead of newer rows.
 - Tracks explicit state through `bin/tmux-agent-bar-hook`.
 - Includes built-in agent classifiers for `claude` and `codex`.
 - Includes `bin/tmux-agent-bar-codex-hook` for supported Codex lifecycle and approval hook events.
@@ -56,7 +56,7 @@ The Codex adapter maps:
 
 `PostToolUse` is intentionally ignored for durable state. `PreToolUse` already marks the turn as active, and treating the post-tool hook as another `working` edge can keep refreshing stale state after the last tool call if the later `Stop` edge is missed.
 
-Codex still needs live tail inference for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
+`waiting` is kept as a hook/classifier input state, but resolved rows display as `done` with the same green check mark. Codex still needs live tail inference for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
 
 ## CLI entrypoints
 
@@ -73,9 +73,13 @@ render [current-target]
 render-cached [current-target]
 current-state [current-target]
 current-state-cached [current-target]
+explain <session>
+explain-cached <session>
 ```
 
 Use `render-cached` or `current-state-cached` when the caller must avoid source refresh hooks. Use `current-state` when another tmux-side integration needs the current session's resolved state instead of the rendered multi-session segment.
+
+Use `explain` or `explain-cached` to debug why one session resolves to a visible row or stays hidden. The output is stable `key=value` lines with the selected row, local evidence, shadowing status, proposed side effects, and source/cache freshness fields. `explain-cached` skips source refresh hooks.
 
 The status renderer defaults to optimizing for right-to-left scanning from the right edge. Set `TMUX_AGENT_BAR_SCAN_DIRECTION=left-to-right` in the renderer environment to put the front of the same queue at the left edge instead.
 
@@ -121,7 +125,7 @@ The local collector also keeps bounded observation markers under:
 ${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agent-bar/observed-sessions/
 ```
 
-Those markers are written after a shell-wrapped session is observed in an active or waiting fallback state. They are cleared when that pane no longer has active fallback evidence, so old scrollback does not keep a completed agent in the bar. Orphan markers are also pruned when their tmux session no longer exists.
+Those markers are written after a shell-wrapped session is observed in an active or waiting fallback state. Waiting fallback evidence displays as `done`. Markers are cleared when that pane no longer has active fallback evidence, so old scrollback does not keep a completed agent in the bar. Orphan markers are also pruned when their tmux session no longer exists.
 
 `remote-rows.tsv` uses the normalized five-column row format:
 

@@ -16,6 +16,7 @@ tmux_session_status_emit_record() {
 
   [[ -n "${session_label}" ]] || return 0
   [[ -n "${state}" ]] || return 0
+  state=$(tmux_agent_bar_display_state "${state}")
 
   printf '%s\t%s\t%s\t%s\t%s\n' "${session_label}" "${agent}" "${state}" "${source}" "${updated_at}"
 }
@@ -24,7 +25,6 @@ tmux_session_status_format_session() {
   local name="$1" state="$2"
 
   case "${state}" in
-    waiting) printf '%s' "#[fg=#e3d18a] ${name}#[fg=default]" ;;
     working) printf '%s' "#[fg=#82aaff] ${name}#[fg=default]" ;;
     *)       printf '%s' "#[fg=#21c7a8] ${name}#[fg=default]" ;;
   esac
@@ -107,6 +107,7 @@ tmux_session_status_render_records() {
     [[ -n "${session}" ]] || continue
     [[ "${session}" != "${current}" ]] || continue
     [[ -n "${state}" ]] || continue
+    state=$(tmux_agent_bar_display_state "${state}")
     if printf '%s\n' "${rendered}" | grep -Fqx "${session}"; then
       continue
     fi

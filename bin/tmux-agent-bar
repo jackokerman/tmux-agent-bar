@@ -92,6 +92,143 @@ tmux_session_status_current_state_cached() {
   fi
 }
 
+tmux_agent_bar_cache_age() {
+  local rows_file="" mtime="" now=""
+
+  rows_file=$(tmux_agent_bar_remote_rows_file)
+  [[ -f "${rows_file}" ]] || return 0
+
+  mtime=$(tmux_agent_state_file_mtime "${rows_file}" 2>/dev/null || true)
+  [[ "${mtime}" =~ ^[0-9]+$ ]] || return 0
+  now=$(date +%s)
+  printf '%s\n' "$(( now - mtime ))"
+}
+
+tmux_agent_bar_source_freshness() {
+  local source="$1" updated_at="$2"
+
+  if [[ -z "${source}" ]]; then
+    printf '%s\n' "none"
+  elif [[ "${updated_at}" =~ ^[0-9]+$ && "${updated_at}" != "0" ]]; then
+    printf '%s\n' "timestamped"
+  else
+    printf '%s\n' "unknown"
+  fi
+}
+
+tmux_agent_bar_source_record_for_session() {
+  local session="$1" source_current="$2" source_name="$3" emit_fn="$4"
+  local record_session="" agent="" state="" source="" updated_at=""
+
+  if [[ "${source_name}" == "local" || "${emit_fn}" == "tmux_agent_bar_local_emit_records" ]]; then
+    [[ -n "${TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD:-}" ]] || return 1
+    printf '%s\n' "${TMUX_AGENT_BAR_EXPLAIN_LOCAL_RECORD}"
+    return 0
+  fi
+
+  while IFS=$'\t' read -r record_session agent state source updated_at || [[ -n "${record_session:-}${agent:-}${state:-}${source:-}${updated_at:-}" ]]; do
+    [[ -n "${record_session}" ]] || continue
+    [[ "${record_session}" == "${session}" ]] || continue
+    [[ -n "${state}" ]] || continue
+    state=$(tmux_agent_bar_display_state "${state}")
+    printf '%s\t%s\t%s\t%s\t%s\n' "${record_session}" "${agent}" "${state}" "${source}" "${updated_at}"
+    return 0
+  done < <("${emit_fn}" "${source_current}" 2>/dev/null || true)
+
+  return 1
+}
+
+tmux_agent_bar_selected_record_for_explain() {
+  local session="$1" source_current="$2" index="" source_name="" emit_fn="" record=""
+
+  for index in "${!TMUX_AGENT_BAR_SOURCE_NAMES[@]}"; do
+    source_name="${TMUX_AGENT_BAR_SOURCE_NAMES[${index}]}"
+    emit_fn="${TMUX_AGENT_BAR_SOURCE_EMIT_FNS[${index}]}"
+    [[ -n "${emit_fn}" ]] || continue
+    declare -F "${emit_fn}" >/dev/null 2>&1 || continue
+
+    record=$(tmux_agent_bar_source_record_for_session "${session}" "${source_current}" "${source_name}" "${emit_fn}" 2>/dev/null || true)
+    [[ -n "${record}" ]] || continue
+    printf '%s\n' "${record}"
+    return 0
+  done
+
+  return 1
+}
+
+tmux_agent_bar_print_explain_field() {
+  local key="$1" value="${2:-}"
+
+  printf '%s=%s\n' "${key}" "${value}"
+}
+
+tmux_session_status_explain_main() {
+  local refresh_mode="$1" session="${2:-}" refresh_status="" selected_record=""
+  local selected_session="" agent="" state="" source="" updated_at="" resolution="" selected_reason=""
+  local source_freshness="" cache_age=""
+
+  if [[ -z "${session}" ]]; then
+    printf 'usage: %s explain <session>\n' "${0##*/}" >&2
+    return 2
+  fi
+
+  if [[ "${refresh_mode}" == "cached" ]]; then
+    refresh_status="skipped"
+  else
+    tmux_agent_bar_maybe_refresh_sources
+    refresh_status="attempted"
+  fi
+
+  tmux_agent_bar_collect_local_explain "${session}"
+  selected_record=$(tmux_agent_bar_selected_record_for_explain "${session}" "" 2>/dev/null || true)
+
+  if [[ -n "${selected_record}" ]]; then
+    IFS=$'\t' read -r selected_session agent state source updated_at <<< "${selected_record}"
+    resolution="selected"
+    if [[ "${source}" == "local_explicit" || "${source}" == "local_fallback" ]]; then
+      selected_reason="${TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON}"
+    else
+      selected_reason="source_record"
+    fi
+  else
+    resolution="${TMUX_AGENT_BAR_EXPLAIN_LOCAL_RESOLUTION}"
+    selected_reason="${TMUX_AGENT_BAR_EXPLAIN_SELECTED_REASON}"
+  fi
+
+  source_freshness=$(tmux_agent_bar_source_freshness "${source:-}" "${updated_at:-}")
+  cache_age=$(tmux_agent_bar_cache_age)
+
+  tmux_agent_bar_print_explain_field "session" "${session}"
+  tmux_agent_bar_print_explain_field "selected_record" "${selected_record}"
+  tmux_agent_bar_print_explain_field "agent" "${agent:-}"
+  tmux_agent_bar_print_explain_field "state" "${state:-}"
+  tmux_agent_bar_print_explain_field "source" "${source:-}"
+  tmux_agent_bar_print_explain_field "updated_at" "${updated_at:-}"
+  tmux_agent_bar_print_explain_field "explicit_state" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_STATE}"
+  tmux_agent_bar_print_explain_field "explicit_agent" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT}"
+  tmux_agent_bar_print_explain_field "explicit_mtime" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_MTIME}"
+  tmux_agent_bar_print_explain_field "live_agent" "${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT}"
+  tmux_agent_bar_print_explain_field "tail_agent" "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}"
+  tmux_agent_bar_print_explain_field "tail_state" "${TMUX_AGENT_BAR_LOCAL_TAIL_STATE}"
+  tmux_agent_bar_print_explain_field "stale_working" "${TMUX_AGENT_BAR_LOCAL_STALE_WORKING}"
+  tmux_agent_bar_print_explain_field "observed_agent" "${TMUX_AGENT_BAR_LOCAL_OBSERVED_AGENT}"
+  tmux_agent_bar_print_explain_field "shadowed" "${TMUX_AGENT_BAR_LOCAL_SHADOWED}"
+  tmux_agent_bar_print_explain_field "resolution" "${resolution}"
+  tmux_agent_bar_print_explain_field "side_effects" "${TMUX_AGENT_BAR_EXPLAIN_SIDE_EFFECTS}"
+  tmux_agent_bar_print_explain_field "source_freshness" "${source_freshness}"
+  tmux_agent_bar_print_explain_field "source_refresh_status" "${refresh_status}"
+  tmux_agent_bar_print_explain_field "cache_age" "${cache_age}"
+  tmux_agent_bar_print_explain_field "selected_reason" "${selected_reason}"
+}
+
+tmux_session_status_explain() {
+  tmux_session_status_explain_main "refresh" "$@"
+}
+
+tmux_session_status_explain_cached() {
+  tmux_session_status_explain_main "cached" "$@"
+}
+
 tmux_agent_bar_load_repo_modules
 tmux_agent_bar_load_user_modules
 
@@ -112,6 +249,14 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     current-state-cached)
       shift
       tmux_session_status_current_state_cached "$@"
+      ;;
+    explain)
+      shift
+      tmux_session_status_explain "$@"
+      ;;
+    explain-cached)
+      shift
+      tmux_session_status_explain_cached "$@"
       ;;
     *)
       tmux_session_status_main "$@"

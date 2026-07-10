@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+tmux_agent_bar_display_state() {
+  local state="$1"
+
+  case "${state}" in
+    waiting) printf '%s\n' "done" ;;
+    *)       printf '%s\n' "${state}" ;;
+  esac
+}
+
 tmux_session_status_resolve_state() {
   local explicit_state="$1" live_state="$2" has_known_agent_pane="${3:-0}" stale_working="${4:-0}" agent_mismatch="${5:-0}"
   local state="${explicit_state}"
@@ -11,7 +20,7 @@ tmux_session_status_resolve_state() {
       fi
 
       if [[ "${live_state}" == "waiting" ]]; then
-        state="waiting"
+        state="done"
       elif [[ "${state}" == "done" && "${live_state}" == "working" ]]; then
         state="working"
       elif [[ "${state}" == "working" && "${stale_working}" == "1" ]]; then
@@ -21,7 +30,7 @@ tmux_session_status_resolve_state() {
       state="done"
     fi
 
-    printf '%s\n' "${state}"
+    tmux_agent_bar_display_state "${state}"
     return 0
   fi
 
@@ -30,14 +39,14 @@ tmux_session_status_resolve_state() {
     return 0
   fi
 
-  printf '%s\n' "${live_state}"
+  tmux_agent_bar_display_state "${live_state}"
 }
 
 tmux_agent_bar_reconcile_remote_state() {
   local explicit_state="$1" live_state="$2" stale_working="${3:-0}"
 
   if [[ "${live_state}" == "waiting" ]]; then
-    printf '%s\n' "waiting"
+    printf '%s\n' "done"
     return 0
   fi
 
@@ -46,7 +55,7 @@ tmux_agent_bar_reconcile_remote_state() {
     return 0
   fi
 
-  printf '%s\n' "${explicit_state}"
+  tmux_agent_bar_display_state "${explicit_state}"
 }
 
 tmux_agent_bar_remote_state_is_stale_working() {

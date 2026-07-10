@@ -23,3 +23,5 @@ If a remote row should replace a local row for the same tmux session, add that s
 Only replacement sources should write this file. Additive sources emit rows directly and must not shadow local rows.
 
 Remote transport, polling, and cache population are still intentionally left to user modules, overlays, or external scripts so the checked-in runtime stays generic.
+
+`bin/tmux-agent-bar explain <session>` reports the selected row plus generic source/cache diagnostics for one session. `bin/tmux-agent-bar explain-cached <session>` uses the same diagnostic shape without running source refresh hooks, which is the safer command to request when debugging stale cache or adapter behavior.

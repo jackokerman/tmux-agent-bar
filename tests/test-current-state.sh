@@ -63,7 +63,7 @@ run_case \
   "current" \
   "" \
   $'current\tcodex\twaiting\tlocal_explicit\t20\ncurrent\tcodex\tdone\tremote_mirror\t30\n' \
-  "waiting"
+  "done"
 
 run_case \
   "current state stays empty when no current-session record exists" \
@@ -77,7 +77,7 @@ run_case \
   "other" \
   "tmux-agent-bar" \
   $'other\tcodex\tdone\tlocal_explicit\t10\ntmux-agent-bar\tcodex\twaiting\tlocal_explicit\t20\n' \
-  "waiting"
+  "done"
 
 run_target_resolution_case() {
   local tmp_dir="" actual=""

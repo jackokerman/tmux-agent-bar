@@ -14,7 +14,6 @@ tmux_agent_bar_append_prioritized_record() {
   local state="$1" record="$2"
 
   case "${state}" in
-    waiting) TMUX_AGENT_BAR_WAITING_RECORDS+=("${record}") ;;
     working) TMUX_AGENT_BAR_WORKING_RECORDS+=("${record}") ;;
     done)    TMUX_AGENT_BAR_DONE_RECORDS+=("${record}") ;;
     *)       TMUX_AGENT_BAR_OTHER_RECORDS+=("${record}") ;;
@@ -52,6 +51,7 @@ tmux_agent_bar_emit_prioritized_records() {
       continue
     fi
 
+    state=$(tmux_agent_bar_display_state "${state}")
     TMUX_AGENT_BAR_SEEN_SESSIONS+=("${session}")
     record="${session}"$'\t'"${agent}"$'\t'"${state}"$'\t'"${source}"$'\t'"${updated_at}"
     tmux_agent_bar_append_prioritized_record "${state}" "${record}"
@@ -72,21 +72,26 @@ tmux_agent_bar_scan_direction() {
 
 tmux_agent_bar_emit_scan_ordered_records() {
   awk -F '\t' -v OFS='\t' '
-    function state_priority(state) {
+    function display_state(state) {
       if (state == "waiting") {
+        return "done"
+      }
+      return state
+    }
+
+    function state_priority(state) {
+      if (state == "done") {
         return 1
       }
-      if (state == "done") {
+      if (state == "working") {
         return 2
       }
-      if (state == "working") {
-        return 3
-      }
-      return 4
+      return 3
     }
 
     {
       seq += 1
+      $3 = display_state($3)
       timestamp_group = 1
       timestamp = 0
       if ($3 != "working" && $5 ~ /^[0-9]+$/) {

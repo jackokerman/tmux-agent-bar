@@ -29,22 +29,22 @@ run_case \
     "done"
 
 run_case \
-    "explicit done upgrades to waiting on a real waiting prompt" \
+    "explicit done stays done on a real waiting prompt" \
     "done" \
     "waiting" \
     "1" \
     "0" \
     "0" \
-    "waiting"
+    "done"
 
 run_case \
-    "explicit working upgrades to waiting on a real waiting prompt" \
+    "explicit working resolves to done on a real waiting prompt" \
     "working" \
     "waiting" \
     "1" \
     "0" \
     "0" \
-    "waiting"
+    "done"
 
 run_case \
   "explicit done recovers to working on a visible live working footer" \
@@ -65,13 +65,13 @@ run_case \
     "working"
 
 run_case \
-    "explicit waiting ignores a non-waiting live done signal" \
+    "explicit waiting displays as done" \
     "waiting" \
     "done" \
     "1" \
     "0" \
     "0" \
-    "waiting"
+    "done"
 
 run_case \
     "stale working hook falls back to done without a live signal" \
@@ -92,13 +92,13 @@ run_case \
     "done"
 
 run_case \
-    "sessions without explicit state still show waiting when the prompt needs input" \
+    "sessions without explicit state show done when the prompt needs input" \
     "" \
     "waiting" \
     "1" \
     "0" \
     "0" \
-    "waiting"
+    "done"
 
 run_case \
     "sessions without explicit state stay hidden when the live parser is neutral" \
@@ -152,32 +152,32 @@ run_render_case \
     "renderer orders compact status for right-to-left scanning" \
     "80" \
     $'waiting-old\tcodex\twaiting\tlocal_explicit\t10\nwaiting-new\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t20\ndone-late\tcodex\tdone\tlocal_explicit\t50\n' \
-    $'#[fg=#82aaff] working-a#[fg=default]  #[fg=#21c7a8] done-late#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#e3d18a] waiting-new#[fg=default]  #[fg=#e3d18a] waiting-old#[fg=default] '
+    $'#[fg=#82aaff] working-a#[fg=default]  #[fg=#21c7a8] done-late#[fg=default]  #[fg=#21c7a8] waiting-new#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#21c7a8] waiting-old#[fg=default] '
 
 run_render_case \
     "renderer can optimize compact status for left-to-right scanning" \
     "80" \
     $'waiting-old\tcodex\twaiting\tlocal_explicit\t10\nwaiting-new\tcodex\twaiting\tlocal_explicit\t40\nworking-a\tcodex\tworking\tlocal_explicit\t30\ndone-early\tcodex\tdone\tlocal_explicit\t20\n' \
-    $'#[fg=#e3d18a] waiting-old#[fg=default]  #[fg=#e3d18a] waiting-new#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#82aaff] working-a#[fg=default] ' \
+    $'#[fg=#21c7a8] waiting-old#[fg=default]  #[fg=#21c7a8] done-early#[fg=default]  #[fg=#21c7a8] waiting-new#[fg=default]  #[fg=#82aaff] working-a#[fg=default] ' \
     "left-to-right"
 
 run_render_case \
-    "renderer moves recovered working rows behind done and waiting rows" \
+    "renderer moves recovered working rows behind check-in rows" \
     "80" \
     $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nrecovered-a\tcodex\tworking\tlocal_explicit\t50\ndone-a\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#82aaff] recovered-a#[fg=default]  #[fg=#21c7a8] done-a#[fg=default]  #[fg=#e3d18a] waiting-a#[fg=default] '
+    $'#[fg=#82aaff] recovered-a#[fg=default]  #[fg=#21c7a8] waiting-a#[fg=default]  #[fg=#21c7a8] done-a#[fg=default] '
 
 run_render_case \
     "renderer uses the full available width before showing an ellipsis" \
     "19" \
     $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#e3d18a] beta#[fg=default] '
+    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#82aaff] alpha#[fg=default]  #[fg=#21c7a8] beta#[fg=default] '
 
 run_render_case \
-    "renderer preserves waiting at the right edge when it needs room for the ellipsis" \
+    "renderer preserves check-in state at the right edge when it needs room for the ellipsis" \
     "17" \
     $'beta\tcodex\twaiting\tlocal_explicit\t20\nalpha\tcodex\tworking\tlocal_explicit\t10\ngamma\tcodex\tdone\tlocal_explicit\t30\n' \
-    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#e3d18a] beta#[fg=default] '
+    $'#[fg=#7f8c98]…#[fg=default]  #[fg=#21c7a8] beta#[fg=default] '
 
 run_prioritized_records_case() {
   local actual=""
@@ -211,7 +211,7 @@ EOF
 
   assert_equal \
     "shared record helper keeps first-row precedence and prioritizes states" \
-    $'waiting-a\tcodex\twaiting\tlocal_explicit\t30\nworking-a\tcodex\tworking\tlocal_explicit\t20\ndone-a\tcodex\tdone\tlocal_explicit\t10\nother-a\tcodex\tpaused\tcustom\t50' \
+    $'working-a\tcodex\tworking\tlocal_explicit\t20\ndone-a\tcodex\tdone\tlocal_explicit\t10\nwaiting-a\tcodex\tdone\tlocal_explicit\t30\nother-a\tcodex\tpaused\tcustom\t50' \
     "${actual}"
 }
 
@@ -240,7 +240,7 @@ EOF
 
   assert_equal \
     "scan ordering is stable within tiers without using working mtimes" \
-    $'waiting-a\tcodex\twaiting\tlocal_explicit\t40\nwaiting-b\tcodex\twaiting\tlocal_explicit\t40\ndone-old\tcodex\tdone\tlocal_explicit\t20\ndone-new\tcodex\tdone\tlocal_explicit\t80\nworking-a\tcodex\tworking\tlocal_explicit\t999\nworking-z\tcodex\tworking\tlocal_explicit\t10' \
+    $'done-old\tcodex\tdone\tlocal_explicit\t20\nwaiting-a\tcodex\tdone\tlocal_explicit\t40\nwaiting-b\tcodex\tdone\tlocal_explicit\t40\ndone-new\tcodex\tdone\tlocal_explicit\t80\nworking-a\tcodex\tworking\tlocal_explicit\t999\nworking-z\tcodex\tworking\tlocal_explicit\t10' \
     "${actual}"
 }
 

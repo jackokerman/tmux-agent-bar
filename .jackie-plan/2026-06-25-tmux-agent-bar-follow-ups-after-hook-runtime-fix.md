@@ -1,9 +1,9 @@
 ---
 id: 2026-06-25-tmux-agent-bar-follow-ups-after-hook-runtime-fix
 title: Stabilize tmux-agent-bar state model
-state: ready-to-implement
+state: complete
 createdAt: 2026-06-25T15:46:58.869Z
-updatedAt: 2026-07-10T00:53:31.189Z
+updatedAt: 2026-07-10T01:39:57.114Z
 sourcePlan: 2026-06-24-harden-tmux-agent-bar-state-model
 ---
 
@@ -483,19 +483,20 @@ The earlier public-history guard follow-up `2026-07-09-fix-tmux-agent-bar-public
 
 ## Agent handoff
 
-Implemented the next reviewable step for Phase 1 after confirming the Phase 0 baseline.
+Completed implementation and live cutover prep.
 
 Completed:
-- Confirmed fresh persisted state was `ready-to-implement` with `jp show 2026-06-25-tmux-agent-bar-follow-ups-after-hook-runtime-fix --json`.
-- Confirmed the pre-change baseline was green with `./scripts/check`.
-- Added `tests/test-state-contract.sh` as a table-driven local state contract covering explicit hook state, live local evidence, stale working expiry, agent mismatch, direct fallback, shell-wrapped tail fallback, observed wrapped-session cleanup, shadowing, duplicate source precedence, cached no-refresh behavior, and generic adapter/cache/shadowing artifacts.
-- Wired the new contract test into `scripts/check`.
-- While running the new adapter-boundary contract, exposed an existing blank-row quirk in `tmux_agent_bar_print_record_bucket` when earlier state buckets were empty; fixed it by skipping empty records before printing.
+- Added `bin/tmux-agent-bar explain <session>` and `bin/tmux-agent-bar explain-cached <session>` with stable `key=value` output.
+- Refactored local collection into evidence collection, pure resolution, and side-effect application.
+- Removed `waiting` as a distinct visible status in the public runtime. Hook/classifier/source inputs may still emit `waiting`, but local resolution, source records, prioritized records, current-state, rendering, and explain selected rows normalize it to `done` with the green check mark.
+- Updated public docs/tests and repo guidance for the state contract, explain command, source diagnostics, and `waiting` input-to-`done` behavior.
+- Cut over the active tmux left-prefix wrapper source in the base dotfiles repo so raw explicit or cached `waiting` displays as the green done/check-in prefix. The wrapper still reads raw explicit hook state first so fresh `working` hooks are not hidden behind a stale current-state cache.
+- Added a dotfiles wrapper regression test for raw `waiting`, raw hook-state precedence over cache, and cached `waiting` fallback.
 
 Verification:
-- `./tests/test-state-contract.sh` passes.
-- Focused runtime tests pass: `./tests/test-pane-state.sh`, `./tests/test-session-status-local.sh`, and `./tests/test-session-status.sh`.
-- Full `./scripts/check` passes.
+- Public runtime verification passed: `./scripts/check` and `git diff --check` in `/Users/jackokerman/src/tmux-agent-bar`.
+- Dotfiles tmux wrapper verification passed: `./tests/tmux-agent-bar/test-runtime-path.sh`, `./tests/tmux-agent-bar/test-session-status-left.sh`, `./tests/tmux-agent-bar/test-sync.sh`, `./scripts/check --extended --quiet`, and `git diff --check` in `/Users/jackokerman/dotfiles`.
 
-Next honest step:
-- Start Phase 2 by adding the read-only `bin/tmux-agent-bar explain <session>` and `explain-cached <session>` diagnostic path, using the new contract cases as guardrails and preserving cached no-refresh/no-side-effect behavior.
+Process notes:
+- User explicitly approved proceeding through commit/push/full cutover after review.
+- Live `status-left` was the only remaining yellow waiting path found; no old public runtime yellow waiting color/icon references remained.

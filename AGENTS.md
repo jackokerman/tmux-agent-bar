@@ -12,6 +12,8 @@ Prefer deleting coupling over adding compatibility branches. When a bug appears 
 
 Status rendering must stay bounded and predictable. Avoid polling loops, unbounded process scans, or refresh paths that can block hook completion; add focused regression tests for any performance-sensitive collector behavior.
 
+When fixing a status-state bug, identify the boundary being changed first: explicit hook state, live process identity, tail fallback, observed wrapped-session memory, normalized source rows, replacement shadowing, or render-only ordering. If precedence changes, update `tests/test-state-contract.sh` and docs in the same change. Tail fallback changes need both a positive active fixture and a negative stale or connector fixture.
+
 If a bug only affects the active-session label or tmux refresh timing, inspect the tmux-side wrapper or `status-left`/`status-right` config that calls this repo before changing the shared runtime.
 
 When local status behavior depends on what an agent hook surface does or does not expose, verify the current official product hook docs before preserving or extending transcript inference or process-scanning fallbacks.

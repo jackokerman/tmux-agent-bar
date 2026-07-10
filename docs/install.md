@@ -23,7 +23,7 @@ bind-key A display-popup -E "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"
 bind-key a new-window "/path/to/tmux-agent-bar/bin/tmux-agent-bar-picker"
 ```
 
-If you use Codex hooks, point the supported events at `tmux-agent-bar-codex-hook <HookEvent>`. The adapter maps `PermissionRequest` to `waiting`, `UserPromptSubmit` plus `PreToolUse` plus `PostToolUse` to `working`, and `SessionStart` plus `Stop` to `done`.
+If you use Codex hooks, point the supported events at `tmux-agent-bar-codex-hook <HookEvent>`. The adapter maps `PermissionRequest` to `waiting`, `UserPromptSubmit` plus `PreToolUse` to `working`, and `SessionStart` plus `Stop` to `done`. `waiting` displays as `done`; `PostToolUse` is intentionally ignored.
 
 Codex still relies on the live pane tail for in-turn question and plan confirmation prompts because those do not currently have a dedicated hook event.
 

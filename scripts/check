@@ -26,6 +26,7 @@ run_bash_syntax() {
     "compat/legacy-overlay.sh"
     "tests/test-pane-state.sh"
     "tests/test-current-state.sh"
+    "tests/test-explain.sh"
     "tests/test-hooks.sh"
     "tests/test-remote-cache.sh"
     "tests/test-state-contract.sh"
@@ -41,6 +42,7 @@ run_bash_syntax() {
 run_tests() {
   "${PROJECT_ROOT}/tests/test-pane-state.sh"
   "${PROJECT_ROOT}/tests/test-current-state.sh"
+  "${PROJECT_ROOT}/tests/test-explain.sh"
   "${PROJECT_ROOT}/tests/test-hooks.sh"
   "${PROJECT_ROOT}/tests/test-remote-cache.sh"
   "${PROJECT_ROOT}/tests/test-state-contract.sh"
