@@ -135,7 +135,7 @@ session_label<TAB>agent<TAB>state<TAB>source<TAB>updated_at
 
 `shadowed-sessions.txt` is a newline-delimited list of tmux session labels that the local collector should suppress because another source already represents them. Only replacement sources should write this file; additive sources should emit rows directly and must not shadow local rows.
 
-How those files get populated is intentionally left to user modules, overlays, or external scripts.
+How those files get populated is intentionally left to user modules, overlays, or external scripts. For remote adapters and external launchers, treat the hook entrypoint, source registration API, and normalized cache rows as the public boundary.
 
 See [docs/sources.md](docs/sources.md) for the source contract.
 

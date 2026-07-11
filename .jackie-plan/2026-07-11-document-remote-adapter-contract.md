@@ -1,10 +1,10 @@
 ---
 id: 2026-07-11-document-remote-adapter-contract
 title: Document remote adapter contract
-state: inbox
+state: complete
 priority: high
 createdAt: 2026-07-11T00:16:50.894Z
-updatedAt: 2026-07-11T00:17:26.582Z
+updatedAt: 2026-07-11T00:28:34.324Z
 ---
 
 # Document remote adapter contract

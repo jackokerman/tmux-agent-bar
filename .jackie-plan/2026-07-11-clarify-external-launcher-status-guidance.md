@@ -1,9 +1,9 @@
 ---
 id: 2026-07-11-clarify-external-launcher-status-guidance
 title: Clarify external launcher status guidance
-state: inbox
+state: complete
 createdAt: 2026-07-11T00:17:01.864Z
-updatedAt: 2026-07-11T00:17:01.864Z
+updatedAt: 2026-07-11T00:28:34.364Z
 ---
 
 # Clarify external launcher status guidance
