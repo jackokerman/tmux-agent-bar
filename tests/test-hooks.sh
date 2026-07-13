@@ -20,8 +20,16 @@ make_tmux_stub_dir() {
 set -euo pipefail
 
 if [[ "${1:-}" == "display-message" && "${2:-}" == "-p" ]]; then
-  printf '%s\n' "dev/docs"
-  exit 0
+  case "${*: -1}" in
+    '#{session_name}')
+      printf '%s\n' "dev/docs"
+      exit 0
+      ;;
+    '#{pane_id}')
+      printf '%s\n' "%42"
+      exit 0
+      ;;
+  esac
 fi
 
 exit 1
@@ -48,7 +56,7 @@ run_hook_state_dir_case() {
     fail "hook did not create the explicit state file in STATE_DIR"
   fi
 
-  assert_equal "hook encodes session names with slashes" $'codex\tworking' "$(<"${state_file}")"
+  assert_equal "hook encodes session names with slashes" $'codex\tworking\t%42' "$(<"${state_file}")"
   rm -rf "${tmp_dir}"
 }
 
@@ -89,7 +97,7 @@ run_codex_hook_mapping_case() {
     fail "${name} did not create a Codex state file"
   fi
 
-  assert_equal "${name}" $'codex\t'"${expected_state}" "$(<"${state_file}")"
+  assert_equal "${name}" $'codex\t'"${expected_state}"$'\t%42' "$(<"${state_file}")"
   rm -rf "${tmp_dir}"
 }
 

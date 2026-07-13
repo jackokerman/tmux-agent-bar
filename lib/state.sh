@@ -39,17 +39,18 @@ tmux_agent_bar_decode_session_name() {
 }
 
 tmux_agent_bar_read_state_record() {
-  local state_file="$1" raw="" agent="" state=""
+  local state_file="$1" raw="" agent="" state="" pane_id="" _extra=""
 
   raw=$(<"${state_file}")
-  IFS=$'\t' read -r agent state <<< "${raw}"
+  IFS=$'\t' read -r agent state pane_id _extra <<< "${raw}"
 
   if [[ -z "${state}" ]]; then
     state="${agent}"
     agent="claude"
+    pane_id=""
   fi
 
-  printf '%s\t%s\n' "${agent}" "${state}"
+  printf '%s\t%s\t%s\n' "${agent}" "${state}" "${pane_id}"
 }
 
 tmux_agent_state_file_mtime() {

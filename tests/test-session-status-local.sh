@@ -299,7 +299,7 @@ run_shell_wrapped_tail_fallback_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -340,7 +340,7 @@ run_shell_wrapped_footerless_tail_fallback_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -382,7 +382,7 @@ run_shell_wrapped_unidentified_active_tail_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -417,7 +417,7 @@ run_shell_wrapped_neutral_tail_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -456,7 +456,7 @@ run_shell_wrapped_completed_tail_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -501,7 +501,7 @@ run_shell_wrapped_observed_completion_case() {
     mkdir -p "${STATE_DIR}"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -571,7 +571,7 @@ run_shell_wrapped_connector_tail_case() {
     STATE_DIR="${tmp_dir}"
 
     _session_pane_rows() {
-      printf '%s\t%s\t%s\n' "${session}" "200" "bash"
+      printf '%s\t%s\t%s\t%s\n' "${session}" "%200" "200" "bash"
     }
 
     _session_agent_command() {
@@ -703,6 +703,58 @@ run_explicit_done_process_exit_case() {
 run_explicit_done_process_exit_case \
     "explicit done is hidden when the live agent process exits"
 
+run_pane_scoped_explicit_cleanup_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" state_dir="" state_file="" actual=""
+
+    tmp_dir=$(mktemp -d)
+    state_dir="${tmp_dir}/state"
+    mkdir -p "${tmp_dir}/bin" "${state_dir}"
+    state_file="${state_dir}/stale-pane"
+    printf 'codex\tdone\t%%new\n' > "${state_file}"
+
+    cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
+  printf '%s\n' "current"
+  printf '%s\n' "stale-pane"
+  exit 0
+fi
+
+if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "zsh"
+  printf '%s\t%s\t%s\t%s\n' "stale-pane" "%old" "200" "codex"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/tmux"
+
+    actual=$(
+      PATH="${tmp_dir}/bin:${PATH}" \
+      STATE_DIR="${state_dir}" \
+      XDG_CACHE_HOME="${tmp_dir}/cache" \
+      tmux_session_status_local_emit_records "current"
+    )
+
+    assert_equal "${name}" "" "${actual}"
+
+    if [[ -e "${state_file}" ]]; then
+      fail "${name} state file was not removed"
+    fi
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_pane_scoped_explicit_cleanup_case \
+    "pane-scoped explicit state ignores live agents in other panes"
+
 run_working_live_inference_case() {
   local name="$1"
 
@@ -819,9 +871,9 @@ if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_
 fi
 
 if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
-  printf '%s\t%s\t%s\n' "current" "100" "zsh"
-  printf '%s\t%s\t%s\n' "direct-agent" "200" "codex"
-  printf '%s\t%s\t%s\n' "wrapped agent" "300" "bash"
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "zsh"
+  printf '%s\t%s\t%s\t%s\n' "direct-agent" "%200" "200" "codex"
+  printf '%s\t%s\t%s\t%s\n' "wrapped agent" "%300" "300" "bash"
   exit 0
 fi
 
@@ -899,8 +951,8 @@ if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_
 fi
 
 if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
-  printf '%s\t%s\t%s\n' "current" "100" "vim"
-  printf '%s\t%s\t%s\n' "picked-agent" "200" "bun"
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "vim"
+  printf '%s\t%s\t%s\t%s\n' "picked-agent" "%200" "200" "bun"
   exit 0
 fi
 
@@ -969,8 +1021,8 @@ if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_
 fi
 
 if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
-  printf '%s\t%s\t%s\n' "current" "100" "vim"
-  printf '%s\t%s\t%s\n' "direct-agent" "200" "codex-aarch64-a"
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "vim"
+  printf '%s\t%s\t%s\t%s\n' "direct-agent" "%200" "200" "codex-aarch64-a"
   exit 0
 fi
 

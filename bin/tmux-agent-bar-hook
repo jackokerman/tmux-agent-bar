@@ -7,7 +7,8 @@ TMUX_AGENT_BAR_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TMUX_AGENT_BAR_REPO_DIR}/lib/state.sh"
 
 tmux_agent_bar_hook_main() {
-  local session="" state="${1:-}" agent="${2:-claude}" state_dir="" state_file=""
+  local session="" pane_id="" state="${1:-}" agent="${2:-claude}" state_dir="" state_file=""
+  local -a target_args=()
 
   state_dir=$(tmux_agent_bar_state_dir)
   mkdir -p "${state_dir}"
@@ -15,16 +16,22 @@ tmux_agent_bar_hook_main() {
   # Resolve the real session name from the current pane when possible. `$TMUX`
   # contains the socket path plus pane token, not the session name itself.
   if [[ -n "${TMUX_PANE:-}" ]]; then
-    session=$(tmux display-message -p -t "${TMUX_PANE}" '#{session_name}' 2>/dev/null) || return 0
-  else
-    session=$(tmux display-message -p '#{session_name}' 2>/dev/null) || return 0
+    target_args=(-t "${TMUX_PANE}")
   fi
+
+  session=$(tmux display-message -p "${target_args[@]}" '#{session_name}' 2>/dev/null) || return 0
+  pane_id=$(tmux display-message -p "${target_args[@]}" '#{pane_id}' 2>/dev/null || true)
+
   [[ -n "${session}" ]] || return 0
   [[ -n "${state}" ]] || return 0
   [[ -n "${agent}" ]] || return 0
 
   state_file=$(tmux_agent_bar_state_file_path "${session}")
-  printf '%s\t%s\n' "${agent}" "${state}" > "${state_file}"
+  if [[ -n "${pane_id}" ]]; then
+    printf '%s\t%s\t%s\n' "${agent}" "${state}" "${pane_id}" > "${state_file}"
+  else
+    printf '%s\t%s\n' "${agent}" "${state}" > "${state_file}"
+  fi
 
   if [[ "${state}" == "done" || "${state}" == "waiting" ]]; then
     if { exec 9>/dev/tty; } 2>/dev/null; then

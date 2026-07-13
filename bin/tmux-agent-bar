@@ -206,6 +206,7 @@ tmux_session_status_explain_main() {
   tmux_agent_bar_print_explain_field "updated_at" "${updated_at:-}"
   tmux_agent_bar_print_explain_field "explicit_state" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_STATE}"
   tmux_agent_bar_print_explain_field "explicit_agent" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_AGENT}"
+  tmux_agent_bar_print_explain_field "explicit_pane" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_PANE}"
   tmux_agent_bar_print_explain_field "explicit_mtime" "${TMUX_AGENT_BAR_LOCAL_EXPLICIT_MTIME}"
   tmux_agent_bar_print_explain_field "live_agent" "${TMUX_AGENT_BAR_LOCAL_LIVE_AGENT}"
   tmux_agent_bar_print_explain_field "tail_agent" "${TMUX_AGENT_BAR_LOCAL_TAIL_AGENT}"

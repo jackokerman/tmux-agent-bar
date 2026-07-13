@@ -22,7 +22,10 @@ _contract_enabled() {
 }
 
 _session_has_live_agent_process() {
-  _contract_enabled "${CONTRACT_LIVE_PROCESS:-0}"
+  local requested_pane="${3:-}"
+
+  _contract_enabled "${CONTRACT_LIVE_PROCESS:-0}" || return 1
+  [[ -z "${CONTRACT_LIVE_PANE:-}" || -z "${requested_pane}" || "${requested_pane}" == "${CONTRACT_LIVE_PANE}" ]]
 }
 
 _session_has_known_agent_pane() {
@@ -98,6 +101,7 @@ run_local_contract_case() {
   local name="$1" explicit_agent="$2" explicit_state="$3" live_process="$4" has_known_agent_pane="$5"
   local live_agent="$6" live_state="$7" stale_working="$8" tail_agent="$9" tail_state="${10}"
   local tail_identifies_agent="${11}" observed_agent="${12}" shadowed="${13}" expected="${14}" expected_effect="${15}"
+  local explicit_pane="${16:-}" live_pane="${17:-}"
 
   (
     local tmp_dir="" session="contract-session" state_file="" observed_file="" actual=""
@@ -112,6 +116,7 @@ run_local_contract_case() {
     CONTRACT_LIVE_PROCESS="${live_process}"
     CONTRACT_HAS_KNOWN_AGENT_PANE="${has_known_agent_pane}"
     CONTRACT_LIVE_AGENT="${live_agent}"
+    CONTRACT_LIVE_PANE="${live_pane}"
     CONTRACT_LIVE_STATE="${live_state}"
     CONTRACT_STALE_WORKING="${stale_working}"
     CONTRACT_TAIL_AGENT="${tail_agent}"
@@ -122,7 +127,11 @@ run_local_contract_case() {
     observed_file="$(_session_observed_agent_file "${session}")"
 
     if [[ -n "${explicit_agent}" || -n "${explicit_state}" ]]; then
-      printf '%s\t%s\n' "${explicit_agent}" "${explicit_state}" > "${state_file}"
+      if [[ -n "${explicit_pane}" ]]; then
+        printf '%s\t%s\t%s\n' "${explicit_agent}" "${explicit_state}" "${explicit_pane}" > "${state_file}"
+      else
+        printf '%s\t%s\n' "${explicit_agent}" "${explicit_state}" > "${state_file}"
+      fi
     fi
 
     if [[ -n "${observed_agent}" ]]; then
@@ -174,6 +183,25 @@ run_local_contract_case \
   "0" \
   "" \
   "delete_state"
+
+run_local_contract_case \
+  "pane-scoped explicit row ignores live same-agent process in another pane" \
+  "codex" \
+  "done" \
+  "1" \
+  "1" \
+  "codex" \
+  "" \
+  "0" \
+  "" \
+  "" \
+  "" \
+  "" \
+  "0" \
+  "" \
+  "delete_state" \
+  "%new" \
+  "%old"
 
 run_local_contract_case \
   "explicit done with visible same-agent working renders working" \
@@ -492,8 +520,8 @@ if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_
 fi
 
 if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
-  printf '%s\t%s\t%s\n' "current" "100" "zsh"
-  printf '%s\t%s\t%s\n' "adapter-owned" "200" "codex"
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "zsh"
+  printf '%s\t%s\t%s\t%s\n' "adapter-owned" "%200" "200" "codex"
   exit 0
 fi
 

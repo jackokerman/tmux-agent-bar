@@ -302,30 +302,33 @@ tmux_agent_identify_agent_from_tail() {
 }
 
 tmux_agent_session_live_state() {
-  local session="$1" agent="$2" tail=""
+  local session="$1" agent="$2" pane_filter="${3:-}" target="" tail=""
 
   [[ -n "${agent}" ]] || {
     printf '%s\n' ""
     return 0
   }
 
-  tail=$(tmux_agent_capture_tail "${session}")
+  target="${pane_filter:-${session}}"
+  tail=$(tmux_agent_capture_tail "${target}")
   tmux_agent_infer_state_from_tail "${agent}" "${tail}"
 }
 
 tmux_agent_session_inferred_agent_state() {
-  local session="$1" tail=""
+  local session="$1" pane_filter="${2:-}" target="" tail=""
 
-  tail=$(tmux_agent_capture_tail "${session}")
+  target="${pane_filter:-${session}}"
+  tail=$(tmux_agent_capture_tail "${target}")
   [[ -n "${tail}" ]] || return 1
 
   tmux_agent_infer_agent_state_from_tail "${tail}"
 }
 
 tmux_agent_session_identified_agent() {
-  local session="$1" tail=""
+  local session="$1" pane_filter="${2:-}" target="" tail=""
 
-  tail=$(tmux_agent_capture_tail "${session}")
+  target="${pane_filter:-${session}}"
+  tail=$(tmux_agent_capture_tail "${target}")
   [[ -n "${tail}" ]] || return 1
 
   tmux_agent_identify_agent_from_tail "${tail}"

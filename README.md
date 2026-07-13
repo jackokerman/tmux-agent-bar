@@ -79,7 +79,7 @@ explain-cached <session>
 
 Use `render-cached` or `current-state-cached` when the caller must avoid source refresh hooks. Use `current-state` when another tmux-side integration needs the current session's resolved state instead of the rendered multi-session segment.
 
-Use `explain` or `explain-cached` to debug why one session resolves to a visible row or stays hidden. The output is stable `key=value` lines with the selected row, local evidence, shadowing status, proposed side effects, and source/cache freshness fields. `explain-cached` skips source refresh hooks.
+Use `explain` or `explain-cached` to debug why one session resolves to a visible row or stays hidden. The output is stable `key=value` lines with the selected row, local evidence, explicit pane id, shadowing status, proposed side effects, and source/cache freshness fields. `explain-cached` skips source refresh hooks.
 
 The status renderer defaults to optimizing for right-to-left scanning from the right edge. Set `TMUX_AGENT_BAR_SCAN_DIRECTION=left-to-right` in the renderer environment to put the front of the same queue at the left edge instead.
 
@@ -109,8 +109,10 @@ ${STATE_DIR:-/tmp/tmux-agent-$(id -u)}
 Each state file contains:
 
 ```text
-agent<TAB>state
+agent<TAB>state[<TAB>pane_id]
 ```
+
+`pane_id` is optional for compatibility with older state files. Current hook writes include it when tmux can resolve the calling pane, so an unrelated stale agent pane in the same tmux session cannot keep a newer explicit row alive.
 
 The generic remote cache source reads:
 

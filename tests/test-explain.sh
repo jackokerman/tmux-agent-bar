@@ -80,7 +80,7 @@ run_local_explicit_case() {
     XDG_CACHE_HOME="${tmp_dir}/cache"
     export STATE_DIR XDG_CACHE_HOME
     mkdir -p "${STATE_DIR}"
-    printf 'codex\tdone\n' > "$(tmux_agent_bar_state_file_path "explicit-session")"
+    printf 'codex\tdone\t%%42\n' > "$(tmux_agent_bar_state_file_path "explicit-session")"
 
     _session_has_live_agent_process() {
       return 0
@@ -105,6 +105,7 @@ run_local_explicit_case() {
     actual=$(tmux_session_status_explain_cached "explicit-session")
     assert_explain_field "local explicit explain" "${actual}" "selected_record" $'explicit-session\tcodex\tdone\tlocal_explicit\t42'
     assert_explain_field "local explicit explain" "${actual}" "source" "local_explicit"
+    assert_explain_field "local explicit explain" "${actual}" "explicit_pane" "%42"
     assert_explain_field "local explicit explain" "${actual}" "resolution" "selected"
     assert_explain_field "local explicit explain" "${actual}" "side_effects" "none"
     assert_explain_field "local explicit explain" "${actual}" "selected_reason" "local_explicit"
