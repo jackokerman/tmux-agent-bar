@@ -1,9 +1,9 @@
 ---
 id: 2026-07-14-evaluate-remote-activity-heuristics
 title: Stabilize remote adapter boundary
-state: ready-to-implement
+state: complete
 createdAt: 2026-07-14T17:42:12.584Z
-updatedAt: 2026-07-14T18:55:59.607Z
+updatedAt: 2026-07-14T20:37:20.424Z
 sourcePlan: 2026-07-11-document-remote-adapter-contract
 ---
 
@@ -101,4 +101,21 @@ A separate adapter or plugin can later own user-specific remote/devbox setup, ho
 
 ## Agent handoff
 
-Added an explicit bounded comparison checkpoint for the original private remote session manager that motivated this plan. The implementation agent should re-check its activity-state implementation and tests only for generic adapter-owned lessons, then keep private transport, host, launcher, UI, authentication, and workflow details out of the public repo.
+Implemented the remote adapter boundary stabilization through the review gate.
+
+Code outcome:
+- Removed the unused `tmux_agent_bar_reconcile_remote_state` helper from `lib/reconcile.sh` after confirming no public repo caller and no active private caller.
+- Kept `tmux_agent_bar_remote_state_is_stale_working` as an intentional adapter-facing mtime helper because the active private adapter uses it for stale remote explicit `working` checks.
+- Documented that helper in `docs/sources.md` as a narrow TTL comparison only; adapters still own transport state, transcript/tail inference, cache freshness, and row normalization.
+- Added a focused regression in `tests/test-remote-cache.sh` for stale, fresh, invalid, and explicit TTL cases.
+
+Bounded private comparison:
+- The private resolver keeps remote activity classification adapter-owned: live-agent gating, waiting/working/done reconciliation, cache-preserving probe failure behavior, no preservation of cached `done`, and resolver-focused tests stay outside this public repo.
+
+Verification:
+- `./tests/test-remote-cache.sh` passed.
+- `./tests/test-state-contract.sh` passed.
+- `./scripts/check` passed.
+
+Review gate:
+- Stop before commit, push, lifecycle transition, or archive. Current changed scope is `.jackie-plan/2026-07-14-evaluate-remote-activity-heuristics.md`, `docs/sources.md`, `lib/reconcile.sh`, and `tests/test-remote-cache.sh`.

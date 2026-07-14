@@ -44,6 +44,8 @@ The public adapter contract is the source interface plus the normalized cache fi
 
 A remote adapter should resolve remote evidence before it writes a row:
 
+Shell source modules that already have an explicit-state mtime can call `tmux_agent_bar_remote_state_is_stale_working <mtime> [ttl]` to apply the shared stale-`working` age check. The helper only compares a numeric mtime with a bounded TTL, defaulting to `${TMUX_AGENT_WORKING_TTL:-20}` seconds. It does not inspect transport state, transcripts, panes, or cache freshness; adapters still own those decisions before writing normalized rows.
+
 | Evidence | Adapter responsibility |
 | --- | --- |
 | Explicit lifecycle state | Treat it as the primary state when it is current. |

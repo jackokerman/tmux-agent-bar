@@ -48,4 +48,52 @@ EOF
   rm -rf "${tmp_dir}"
 }
 
+run_stale_working_helper_case() {
+  local actual=""
+
+  (
+    # shellcheck source=/dev/null
+    source "${TARGET_SCRIPT}"
+
+    date() {
+      if [[ "${1:-}" == "+%s" ]]; then
+        printf '%s\n' "130"
+        return 0
+      fi
+
+      command date "$@"
+    }
+
+    if tmux_agent_bar_remote_state_is_stale_working "100" "20"; then
+      actual+="stale"
+    else
+      actual+="fresh"
+    fi
+
+    if tmux_agent_bar_remote_state_is_stale_working "120" "20"; then
+      actual+=$'\n'"stale"
+    else
+      actual+=$'\n'"fresh"
+    fi
+
+    if tmux_agent_bar_remote_state_is_stale_working "not-a-mtime" "20"; then
+      actual+=$'\n'"stale"
+    else
+      actual+=$'\n'"invalid"
+    fi
+
+    if tmux_agent_bar_remote_state_is_stale_working "100" "40"; then
+      actual+=$'\n'"stale"
+    else
+      actual+=$'\n'"ttl-override"
+    fi
+
+    assert_equal \
+      "remote stale-working helper compares numeric mtimes with a bounded ttl" \
+      $'stale\nfresh\ninvalid\nttl-override' \
+      "${actual}"
+  )
+}
+
 run_case
+run_stale_working_helper_case

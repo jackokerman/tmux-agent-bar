@@ -42,22 +42,6 @@ tmux_session_status_resolve_state() {
   tmux_agent_bar_display_state "${live_state}"
 }
 
-tmux_agent_bar_reconcile_remote_state() {
-  local explicit_state="$1" live_state="$2" stale_working="${3:-0}"
-
-  if [[ "${live_state}" == "waiting" ]]; then
-    printf '%s\n' "done"
-    return 0
-  fi
-
-  if [[ "${explicit_state}" == "working" && "${stale_working}" == "1" ]]; then
-    printf '%s\n' "done"
-    return 0
-  fi
-
-  tmux_agent_bar_display_state "${explicit_state}"
-}
-
 tmux_agent_bar_remote_state_is_stale_working() {
   local mtime="$1" ttl="${2:-${TMUX_AGENT_WORKING_TTL:-20}}" now=""
 
