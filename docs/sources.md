@@ -53,6 +53,15 @@ A remote adapter should resolve remote evidence before it writes a row:
 | Probe or transport failure | Prefer preserving the last useful cache over blocking the renderer or deleting rows blindly. |
 | Same local session label | Use replacement rows plus `shadowed-sessions.txt`; otherwise stay additive. |
 
+When an adapter owns a terminal, PTY, or stream of remote output, prefer a small activity state machine over a bare process-alive check:
+
+- Treat explicit lifecycle events as the strongest signal when the agent exposes them.
+- Mark recently submitted agent prompts as `working` for a short, bounded grace period, so status reacts before output arrives.
+- Use a rolling output-volume window for live `working` inference instead of any output at all. Low-volume terminal redraws, clocks, prompts, or keepalives should not keep a row active forever.
+- Ignore startup bursts and resize redraws while they settle. Those can be large enough to look like real work even though the agent is idle.
+- Collapse adapter-local states such as connecting, initializing, idle, disconnected, or error into the public row contract before writing cache rows. Usually `working` means active agent work, `waiting` means user attention is needed, `done` means no active work is visible, and no row means the adapter cannot make a useful claim.
+- Keep transport recovery outside the renderer. A supervisor may reconnect, restart, or repopulate a cache, but the checked-in runtime should only see normalized rows and cache freshness.
+
 The checked-in `remote-cache` source does not perform remote probes. It only reads the normalized rows. This keeps the core runtime launcher-agnostic and gives each adapter room to choose the smallest reliable transport for its environment.
 
 ## External launchers
