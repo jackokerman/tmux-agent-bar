@@ -1,9 +1,10 @@
 ---
 id: 2026-07-14-design-shareable-remote-adapter-package
 title: Harden public adapter platform
-state: inbox
+state: active
+priority: high
 createdAt: 2026-07-14T20:37:15.124Z
-updatedAt: 2026-07-15T04:42:34.835Z
+updatedAt: 2026-07-15T05:05:23.605Z
 sourcePlan: 2026-07-14-evaluate-remote-activity-heuristics
 ---
 
