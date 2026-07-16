@@ -1,9 +1,9 @@
 ---
 id: 2026-06-25-tmux-agent-bar-picker-preview-pane
 title: tmux-agent-bar picker preview pane
-state: inbox
+state: paused
 createdAt: 2026-06-25T00:47:17.114Z
-updatedAt: 2026-07-15T04:43:10.205Z
+updatedAt: 2026-07-16T19:15:02.826Z
 sourcePlan: 2026-06-25-tmux-agent-bar-session-ordering-and-picker
 ---
 
@@ -66,4 +66,4 @@ The picker should consume the same public row command that third-party TUIs woul
 
 ## Agent handoff
 
-Original design input and public-tool research remain useful: a reference switcher uses `prefix + S`, a flat agents mode sorted by actionable status, live `tmux capture-pane` preview, and separate compact/larger popup shapes depending on preview visibility. The plan is now explicitly blocked on the public row API/platform hardening work so the richer picker becomes a consumer of the same contract as external TUIs.
+Paused pending the Fleet verdict. Fleet may provide the richer picker/TUI surface directly; if Fleet is rejected or deferred, resume this plan only after the public row/API contract is settled or replaced by a deliberate UI data contract.

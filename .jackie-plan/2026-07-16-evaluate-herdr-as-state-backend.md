@@ -1,9 +1,9 @@
 ---
 id: 2026-07-16-evaluate-herdr-as-state-backend
 title: Evaluate Herdr for agent-centric workflow
-state: inbox
+state: complete
 createdAt: 2026-07-16T05:27:59.887Z
-updatedAt: 2026-07-16T06:05:09.329Z
+updatedAt: 2026-07-16T19:15:02.740Z
 sourcePlan: 2026-07-14-design-shareable-remote-adapter-package
 ---
 
@@ -196,3 +196,7 @@ If Herdr is rejected, checkpoint the evidence here and resume the existing `Hard
 - Save private commands and sanitized diagnostic output outside this public repo when necessary.
 - Confirm any fallback design against the current source/row contract and `tests/test-state-contract.sh`.
 - Run `./scripts/check` for any public repo change.
+
+## Agent handoff
+
+Closed as a standalone adoption track. Fleet is now the primary off-the-shelf candidate because it preserves tmux and is MIT-licensed. Herdr remains reference material for state/workspace ideas and remote limitations, but Herdr should only be reopened if Fleet fails and Herdr has a newly plausible connector story. This is administrative supersession, not a completed Herdr migration or full Herdr feasibility verdict.

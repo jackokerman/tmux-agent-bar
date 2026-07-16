@@ -1,10 +1,10 @@
 ---
 id: 2026-07-14-design-shareable-remote-adapter-package
 title: Harden public adapter platform
-state: active
+state: paused
 priority: high
 createdAt: 2026-07-14T20:37:15.124Z
-updatedAt: 2026-07-15T05:05:23.605Z
+updatedAt: 2026-07-16T19:15:02.655Z
 sourcePlan: 2026-07-14-evaluate-remote-activity-heuristics
 ---
 
@@ -138,3 +138,7 @@ Before treating this as a public package others can build on, audit the repo for
 ## Next honest step
 
 Start with the row API and tmux cached-wrapper decision. Do not extract or package an environment-specific adapter until the base row/status contract is explicit enough that the adapter can depend on it without reaching into private wrapper behavior.
+
+## Agent handoff
+
+Paused while Fleet is evaluated as the primary off-the-shelf path. Do not implement the public row/status contract first unless the user explicitly overrides the Fleet-first sequence or Fleet is rejected/deferred. If Fleet fails, this plan remains the fallback public implementation contract.
