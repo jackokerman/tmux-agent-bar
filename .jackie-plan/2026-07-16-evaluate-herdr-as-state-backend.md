@@ -1,201 +1,198 @@
 ---
 id: 2026-07-16-evaluate-herdr-as-state-backend
-title: Evaluate Herdr as workflow replacement
+title: Evaluate Herdr for agent-centric workflow
 state: inbox
 createdAt: 2026-07-16T05:27:59.887Z
-updatedAt: 2026-07-16T05:36:46.844Z
+updatedAt: 2026-07-16T06:05:09.329Z
 sourcePlan: 2026-07-14-design-shareable-remote-adapter-package
 ---
 
-# Evaluate Herdr as workflow replacement
+# Evaluate Herdr for agent-centric workflow
 
 ## Plan
 
 ## Objective
 
-Evaluate Herdr first as a wholesale replacement for the current tmux session, agent-status, and navigation workflow. Only evaluate Herdr as a state backend or `tmux-agent-bar` source adapter if the TUI is not a complete fit or the real SSH-like topology prevents wholesale adoption.
+Decide on the work machine whether Herdr can replace the current agent-session picker and simple tmux layouts despite a private non-OpenSSH devbox connection. If Herdr cannot observe remote agents and create useful remote sidecars without substantial connector-specific glue, stop pursuing it as a runtime and carry the relevant state-management ideas into `tmux-agent-bar` instead.
 
-Run the decisive topology tests on the machine where agents actually work across remote boundaries. The output is an adoption decision and migration sketch, not an implementation.
+The output is an evidence-backed adoption or rejection decision. Do not migrate active sessions or implement a durable bridge during evaluation.
 
-## Current recommendation
+## Resume context
 
-Treat wholesale adoption as the leading hypothesis, not the long shot.
+The desired workflow is agent-centric, not workspace-centric:
 
-Herdr already covers most of the user-facing surface that `tmux-agent-bar` and the surrounding tmux setup are trying to assemble: persistent terminals, project-level navigation, tabs and splits, agent state, attention ordering, searchable switching, remote attach, notifications, and a customizable sidebar. A short hands-on TUI pilot is now the cheapest and most decisive next step.
+- Several agents may run locally across different repositories.
+- Each remote devbox normally has one agent.
+- The current picker presents one flat list of all agent sessions and switches directly to the selected tmux session.
+- A typical tmux session is deliberately simple: one agent pane, sometimes split side by side for an editor, shell, or terminal review/diff tool.
+- Workspaces, host groupings, multi-agent remote projects, and elaborate layouts are not important user concepts.
+- tmux remains attractive because it is universal and already sits comfortably around the private devbox connector.
 
-Do not build an adapter first. If Herdr can own the relevant panes and its TUI feels good, keeping tmux plus a Herdr-to-row bridge would preserve complexity instead of removing it.
+The evaluation should therefore judge Herdr as a flat agent switcher with optional sidecars. Do not require the user to adopt workspace-oriented navigation merely because Herdr exposes workspaces internally.
 
-## Preliminary TUI assessment
+## Preliminary findings
 
-Herdr's hierarchy maps reasonably onto the current workflow:
+### UI fit
 
-- one Herdr server session is the persistent runtime;
-- a Herdr workspace is the likely replacement for a tmux session or project context;
-- tabs separate views within a workspace;
-- panes are real terminals and splits;
-- the sidebar shows both workspaces and agents, with rolled-up state and attention.
+Herdr's TUI is credible for this workflow:
 
-The keyboard surface is credible for a keyboard-first workflow:
+- The Agents panel always contains all detected agents across workspaces.
+- `ui.agent_panel_sort = "priority"` can flatten attention ordering instead of grouping by workspace.
+- Optional previous-agent, next-agent, and indexed agent bindings can switch directly across the agent list.
+- `prefix+g` provides a searchable workspace/tab/pane tree with state filters.
+- Selecting an agent focuses its workspace, tab, and pane, so workspaces can remain mostly incidental.
+- Ordinary panes can be split right or down for editor, shell, test, and review sidecars.
+- The sidebar can be compacted or hidden when pane width matters.
+- Detach/reattach, copy mode, popups, notifications, worktree helpers, and the socket API cover more than the minimum workflow needs.
 
-- `prefix+w` opens a persistent navigate mode for moving through workspaces and panes;
-- `prefix+g` opens a searchable workspace/tab/pane tree with agent-state filters;
-- `prefix+1..9` switches tabs;
-- workspace 1-9, agent 1-9, previous/next workspace, and previous/next agent actions exist and can be bound explicitly;
-- `prefix+h/j/k/l` moves between panes, with split, zoom, swap, resize, close, and copy-mode bindings following familiar tmux conventions;
-- every binding and the prefix are configurable, and direct `ctrl+alt` chords can coexist with prefix bindings;
-- `prefix+q` detaches while the server and pane processes keep running.
+An isolated Herdr `0.7.4` smoke test confirmed that the desktop layout, searchable navigator, and navigate overlay are coherent and responsive. It did not validate daily terminal fidelity, remote integration, or long-running stability.
 
-The UI is not an all-or-nothing space cost. The expanded sidebar defaults to a compact workspace/branch and agent/state layout, can be collapsed with `prefix+b`, and can be configured so collapsed means fully hidden. Agent ordering can be grouped by workspace or sorted by attention priority. Row tokens, labels, colors, width bounds, and per-agent layouts are configurable.
+### `sesh` compatibility
 
-Other potentially useful replacement features include mouse selection and split resizing, searchable copy mode, session-modal popup terminals and custom commands, built-in Git worktree flows, notifications and sounds, mobile/narrow-terminal layouts, and a socket API for later custom UI work.
+`sesh` manages tmux sessions and requires a tmux-compatible command surface. Herdr does not implement that CLI, so `sesh connect`, session switching, startup-window configuration, and existing tmux popup integration do not transfer directly.
 
-An isolated local smoke test of Herdr `0.7.4` confirmed that the desktop layout, searchable navigator, and persistent navigate overlay are coherent and responsive under a nested temporary tmux session. That is enough to justify a real pilot, but not enough to validate terminal fidelity, Neovim behavior, copy/paste, long-running stability, or daily navigation preferences.
+If Herdr is adopted, its Agents panel and session navigator should replace the switching part of `sesh`. Only recreate zoxide-based directory discovery or workspace creation if hands-on use shows that capability is still missed; do not build a general compatibility layer.
 
-## Architectural constraints
+### Remote constraint
 
-The largest risk is no longer the TUI; it is the boundary of one Herdr server.
+The private devbox connection is the decisive risk:
 
-- Workspaces inside one Herdr server are easy to navigate together.
-- Herdr named sessions are separate server namespaces, not one combined switcher. Prefer one session with many workspaces unless isolation is genuinely required.
-- `herdr --remote <host>` gives a good thin-client experience for one remote Herdr server.
-- Agents launched after plain SSH inside a local Herdr pane are not currently detected; upstream issue `#1170` reports this exact limitation.
-- Unified local and multiple-remote Herdr servers are acknowledged upstream but not implemented; issue `#334` describes that desired architecture.
-- Herdr owns the PTY/pane in the supported path. Existing tmux sessions and remote wrapper panes are not adopted passively.
-- Claude Code and Codex still use screen-manifest detection because their hooks do not cover every lifecycle transition. Background waits can still be classified as done.
-- The external snapshot/event API was added in `0.7.2`, so it is promising but young.
-- Herdr is AGPL-3.0-or-later or commercially licensed, while this repo is MIT. Reuse documented APIs and concepts, but do not copy implementation code without a deliberate license decision.
+- Plain SSH started inside a local Herdr pane does not currently make the remote agent appear automatically; upstream issue `#1170` describes that gap.
+- `HERDR_AGENT=<agent>` can tell Herdr to apply a known screen manifest to a host-visible wrapper process. This may work for a connector that faithfully streams one remote agent UI, but it has not been tested with the real connector.
+- If one central Herdr server owns a connector pane, a new Herdr split launches on the server host. It does not automatically inherit the remote connection. A remote sidecar would need the connector to open a second session to the same devbox and launch the requested tool.
+- Running a Herdr server on each devbox would make sidecars naturally remote, but each devbox becomes a separate server. Herdr does not currently aggregate multiple servers into one Agents panel; upstream issue `#334` tracks that broader direction.
 
-If the work machine is one durable control host and all useful work can live inside one Herdr server there, wholesale adoption may fit well. If the current connector opens agents on multiple independent hosts while only streaming terminal views through local panes, Herdr's current remote model may be the blocker.
+Herdr is viable as a wholesale replacement only if the real connector can support both remote agent detection and same-devbox sidecar creation with very little glue.
 
-## Questions to answer
+### State and license constraints
 
-1. Can each current tmux session map naturally to a Herdr workspace inside one server?
-2. Can the preferred keyboard flow switch workspace, agent, tab, and pane with no more friction than the current picker and tmux bindings?
-3. Is the sidebar useful at normal terminal widths, and is collapsing or hiding it sufficient when maximum pane width matters?
-4. Does Herdr faithfully handle Neovim, shell input, copy mode, clipboard behavior, colors, links, mouse modes, resize, scrollback, and long-running output?
-5. What owns each live terminal and PTY on the work machine: local tmux, a local connector, a remote multiplexer, or an agent-specific launcher?
-6. Can Herdr run where the agents actually live and replace that owner, or would it only wrap an SSH-like connection?
-7. Does one Herdr server cover the useful fleet, or does the workflow require aggregation across independent hosts or servers?
-8. Is Herdr's state at least as trustworthy as the current setup for active turns, permission prompts, questions, background waits, disconnects, and exits?
-9. Are AGPL use and deployment acceptable in the actual environment?
+- Claude Code and Codex state still comes from Herdr screen-manifest detection because their hooks do not author every lifecycle transition. Background waits can still look done.
+- Herdr's external snapshot/event API was added recently in `0.7.2` and should be treated as promising but young.
+- Herdr is AGPL-3.0-or-later or commercially licensed, while `tmux-agent-bar` is MIT. Reuse documented concepts and APIs, but do not copy Herdr implementation code without a deliberate license decision.
 
-## Evaluation sequence
+## Work-machine evaluation
 
-### 1. Run a time-boxed TUI fit gate
+### 1. Inspect the actual boundary
 
-Use a version-pinned, isolated Herdr setup without migrating live work. Spend enough real keyboard time to test the workflow rather than only reading screenshots.
+Trace one local agent session and one representative devbox agent session through:
 
-Create several representative workspaces, tabs, and panes. Exercise:
+- tmux session and pane ownership;
+- connector process and invocation;
+- remote agent process;
+- lifecycle hooks or terminal inference;
+- current state/cache writer;
+- picker and sidecar launch behavior.
 
-- `prefix+w` navigate mode;
-- `prefix+g` search and state filters;
-- numbered tab switching and configured numbered workspace/agent switching;
-- previous/next agent and workspace bindings;
-- pane focus, split, resize, swap, zoom, and close;
-- expanded, compact, and hidden sidebar modes;
-- attention-priority versus workspace-grouped agent ordering;
-- detach and reattach;
-- copy mode, clipboard, Neovim, shell history, mouse capture, links, and long output;
-- one custom popup command if popups could replace an existing tmux popup.
+Keep private connector names, hostnames, paths, authentication details, and commands out of this public plan. Use an untracked work-machine note when exact details are needed.
 
-Record only concrete friction. Reject wholesale adoption early if the terminal or navigation experience is materially worse and cannot be fixed with a small keybinding or sidebar configuration.
+### 2. Run the smallest Herdr feasibility test
 
-### 2. Map the real topology into Herdr
+Use an isolated, version-pinned Herdr setup without replacing tmux or existing sessions.
 
-Trace one representative local agent, one SSH-like agent, and one disconnected/reconnected agent from launcher through PTY owner and transport. Determine whether each current tmux session can become a workspace in one Herdr server.
+Test one local agent and one connector-backed devbox agent. For the connector-backed pane:
 
-Keep private hostnames, paths, auth details, and proprietary connector names in an untracked work-machine note. Preserve only the generic topology and decision in this public plan.
+- launch the wrapper with the appropriate `HERDR_AGENT` hint;
+- verify whether it appears in `agent list --json` and the Agents panel;
+- verify working, blocked/question, done/idle, interrupt, exit, disconnect, and reconnect behavior;
+- inspect failures with `agent explain --json`;
+- confirm that stale connector output does not remain a false live agent.
 
-### 3. Exercise the actual remote shapes
+Reject wholesale adoption if reliable detection needs transcript scraping, broad polling, socket forwarding, or connector recovery logic inside Herdr-specific glue.
 
-Test these separately:
+### 3. Test flat switching and sidecars
 
-- plain SSH started inside a local Herdr pane;
-- the real SSH-like connector started inside a Herdr pane;
-- Herdr running where the work lives and attached with `herdr --remote`;
-- more than one remote Herdr server if the real overview spans hosts;
-- detach, transport loss, and reconnect while work continues.
+Configure priority-sorted agents plus direct previous/next and indexed agent bindings. Confirm that switching among several local agents and the devbox agent is at least as fast as the current picker.
 
-Confirm whether `HERDR_AGENT` can make a connector-owned pane classify the live remote UI reliably. Treat that only as a screen-detection hint, not proof of remote lifecycle integration.
+From the devbox agent pane, create a side-by-side editor or review pane and answer these explicitly:
 
-### 4. Verify agent state and recovery
+- Does the split run locally or remotely?
+- Can the connector reopen the same devbox non-interactively?
+- Can a small launch command preserve devbox identity and working directory?
+- Does disconnect/reconnect leave both panes understandable and recoverable?
 
-In representative Codex and Claude panes, test working, permission/question blocking, idle/done, interrupt, background wait, process exit, detach/reattach, and full Herdr server restart. Distinguish live detach persistence from snapshot restore and native agent-session resume.
+Reject wholesale adoption if routine remote sidecars require a new supervisor, complex per-pane metadata, fragile connection cloning, or a second Herdr server that disappears from the unified agent list.
 
-Use `agent list --json`, `agent explain --json`, and `api snapshot` to compare visible state with Herdr's underlying model.
+### 4. Decide and stop
 
-### 5. Evaluate the custom-state boundary only if needed
+Choose one outcome:
 
-If the TUI is good but remote coverage or one UI detail is missing, build an ephemeral untracked probe that:
+1. Adopt Herdr wholesale because one server can own all relevant agent panes and sidecars with minimal connector glue.
+2. Keep tmux and use Herdr only as design input.
+3. Consider a narrow Herdr state adapter only if its state is uniquely valuable and the adapter is simpler than improving the existing remote source.
 
-- bootstraps from `herdr api snapshot`;
-- subscribes to pane/resource events;
-- projects Herdr agents into `tmux-agent-bar`'s normalized row shape;
-- measures reconnect behavior, event loss, snapshot latency, and state-change latency.
+Do not choose a hybrid merely to preserve sunk evaluation work. Prefer the smallest overall system that preserves the flat agent picker and universal session behavior.
 
-Do not add a daemon or adapter to this repo during evaluation. Treat a required persistent subscriber as an adoption cost.
+## Fallback: harden `tmux-agent-bar` as the state platform
 
-### 6. Choose one outcome
+If Herdr fails the connector or sidecar test, return to the active `Harden public adapter platform` plan. The target architecture is:
 
-Prefer outcomes in this order when the evidence supports them:
+```text
+hooks and private remote adapters
+              |
+              v
+canonical cached agent rows
+         /        |        \
+        v         v         v
+   tmux status  fzf picker  future UI
+```
 
-1. Replace tmux and most or all of `tmux-agent-bar` with one Herdr server and many workspaces.
-2. Use Herdr for the topology it can own while retaining a smaller cross-host status surface.
-3. Keep tmux and add Herdr only as an optional normalized source.
-4. Keep `tmux-agent-bar` and borrow only design ideas.
+The private adapter should continue to own transport, host discovery, connector behavior, remote probing, authentication, and recovery. The public core should remain launcher-agnostic and consume only normalized state.
 
-Choose the smallest overall system, not the smallest immediate migration.
+Prioritize these Herdr-inspired improvements without copying its implementation:
 
-## Ideas worth borrowing if adoption fails
+- Make state authority explicit so hook, process, tail, and adapter evidence do not compete silently.
+- Preserve semantic state separately from presentation. A compact renderer may display waiting/blocked like done while richer consumers retain the distinction.
+- Keep stable identity separate from display labels.
+- Publish `rows` and `rows-cached` as the canonical snapshot API.
+- Make the status renderer, fzf picker, and future consumers share one filtering and ordering path.
+- Strengthen `explain` so it reports authority, evidence, freshness, fallback, shadowing, and the selected row.
+- Consider unseen completion separately from ordinary idle only if a concrete consumer needs attention state.
+- Keep terminal/output observation in the PTY owner or adapter, never the renderer.
 
-- Bootstrap custom consumers with one snapshot API, then add events for real long-lived clients.
-- Separate semantic state from visual metadata and labels.
-- Track state authority explicitly so hooks and terminal inference do not compete.
-- Preserve stable runtime identity separately from display labels.
-- Add row-level `explain` evidence showing authority, matched rule, fallback reason, and freshness.
-- Model unseen completion separately from ordinary idle state.
-- Keep terminal/output observation owned by the PTY runtime or adapter, never the status renderer.
+Do not add a daemon, socket protocol, event bus, JSON format, or compatibility layer unless a concrete consumer proves the simpler cached-row contract insufficient.
 
-The existing stable `rows`/`rows-cached` plan remains useful if Herdr is rejected or only partially adopted. Do not implement it merely to preserve a future tmux path before the Herdr evaluation finishes.
+## Paper-cut investigation
+
+The value of `tmux-agent-bar` depends on predictable state more than another UI. On the work machine, capture a focused reproduction for each observed paper cut and classify it before editing:
+
+- explicit hook state;
+- live process identity;
+- bounded tail fallback;
+- observed wrapped-session memory;
+- normalized source rows;
+- replacement shadowing;
+- source refresh or cache timing;
+- render-only filtering or ordering;
+- tmux-side cached option refresh.
+
+Use `explain-cached` when diagnosing stale cache or adapter behavior so the diagnostic does not mutate the evidence by refreshing sources. Add a focused regression test at the boundary that actually changes.
 
 ## Non-goals
 
 - Do not migrate or terminate active tmux sessions during evaluation.
-- Do not build a Herdr adapter before testing wholesale use.
-- Do not add Herdr-specific logic to the core renderer during the pilot.
+- Do not disclose private connector details in this public repository.
+- Do not build a general Herdr/`sesh` compatibility layer.
+- Do not add Herdr-specific logic to the core renderer.
 - Do not copy AGPL implementation code into this MIT repository.
-- Do not encode private machine topology or work-specific connectors in checked-in files.
-- Do not build multi-server aggregation unless the final comparison deliberately selects that as the smallest viable system.
-
-## Adoption criteria
-
-Wholesale adoption is viable only if:
-
-- one Herdr server can represent the useful set of projects and agents, or the loss of a unified multi-server view is acceptable;
-- workspace, agent, tab, and pane switching feel at least as fast as the current keyboard workflow;
-- the sidebar improves awareness without consuming unacceptable space;
-- terminal behavior is trustworthy for Neovim, shells, copy/paste, scrollback, resize, and long-running tools;
-- local and remote agents are not silently omitted;
-- active work, blocked prompts, background waits, completion, exit, and disconnect are accurate enough to trust;
-- detach and reconnect do not require manual repair;
-- Herdr removes enough custom navigation, state, and transport code to justify migration and its operational/license constraints.
+- Do not build multi-server aggregation or connector supervision merely to make Herdr fit.
+- Do not implement a new UI until the underlying row/state contract is reliable enough that the UI would not inherit the current paper cuts.
 
 ## Stopping point
 
 Stop after producing:
 
-- a short TUI scorecard;
-- a sanitized topology map;
-- a state/reconnect evidence table;
-- the recommended outcome and rejected alternatives;
-- any upstream dependency that blocks adoption;
-- a separate migration plan only if wholesale or partial adoption is selected.
+- a sanitized topology summary;
+- a Herdr remote-detection and sidecar verdict;
+- a short flat-agent-navigation scorecard;
+- the selected outcome and rejected alternatives;
+- focused reproductions for any `tmux-agent-bar` paper cuts discovered during inspection;
+- a separate migration plan only if Herdr wholesale adoption is selected.
 
-Do not migrate live sessions or implement an adapter until that report is reviewed.
+If Herdr is rejected, checkpoint the evidence here and resume the existing `Harden public adapter platform` plan rather than creating a duplicate implementation plan.
 
 ## Verification
 
-- Capture the tested Herdr version and protocol/schema version.
-- Save sanitized screenshots or command fixtures for navigation, snapshot, state-change, reconnect, and failure cases outside the public repo when they expose private topology.
-- Confirm the recommendation against the current `tmux-agent-bar` source/row contract and the active `Harden public adapter platform` plan.
-- If public repo files are later changed, run `./scripts/check` and follow the repo's commit/push requirements in that implementation session.
+- Record the tested Herdr version and protocol/schema version.
+- Save private commands and sanitized diagnostic output outside this public repo when necessary.
+- Confirm any fallback design against the current source/row contract and `tests/test-state-contract.sh`.
+- Run `./scripts/check` for any public repo change.
