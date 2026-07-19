@@ -131,6 +131,15 @@ tmux_agent_bar_local_prepare_snapshots() {
   if [[ -n "${TMUX_AGENT_BAR_LOCAL_PS_SNAPSHOT}" ]]; then
     process_snapshot=$(
       awk -v target_agents="${target_agents}" '
+        function matching_agent_command(command, i) {
+          for (i in wanted) {
+            if (command == i || index(command, i "-") == 1) {
+              return i
+            }
+          }
+          return ""
+        }
+
         BEGIN {
           agent_count = split(target_agents, agents, ",")
           for (i = 1; i <= agent_count; i++) {
@@ -154,9 +163,10 @@ tmux_agent_bar_local_prepare_snapshots() {
           pane_session[pid] = session
           pane_token[pid] = pane_id
           key = session SUBSEP pane_id
-          if (wanted[comm] && !seen_pane[key]) {
+          matched_command = matching_agent_command(comm)
+          if (matched_command != "" && !seen_pane[key]) {
             seen_pane[key] = 1
-            direct_command[key] = comm
+            direct_command[key] = matched_command
             direct_session[key] = session
             direct_pane[key] = pane_id
           }
@@ -173,10 +183,11 @@ tmux_agent_bar_local_prepare_snapshots() {
           }
 
           parent[pid] = ppid
-          if (wanted[comm]) {
+          matched_command = matching_agent_command(comm)
+          if (matched_command != "") {
             candidate_count += 1
             candidate_pid[candidate_count] = pid
-            candidate_command[candidate_count] = comm
+            candidate_command[candidate_count] = matched_command
           }
         }
 
@@ -353,6 +364,15 @@ _session_live_agent_command() {
 
   live_agent_command=$(
     awk -v pane_pids="${pane_pids}" -v target_agents="${target_agents}" '
+    function matching_agent_command(command, i) {
+      for (i in wanted) {
+        if (command == i || index(command, i "-") == 1) {
+          return i
+        }
+      }
+      return ""
+    }
+
     BEGIN {
       pane_count = split(pane_pids, panes, ",")
       for (i = 1; i <= pane_count; i++) {
@@ -379,10 +399,11 @@ _session_live_agent_command() {
       }
 
       parent[pid] = ppid
-      if (wanted[comm]) {
+      matched_command = matching_agent_command(comm)
+      if (matched_command != "") {
         candidate_count += 1
         candidate_pid[candidate_count] = pid
-        candidate_command[candidate_count] = comm
+        candidate_command[candidate_count] = matched_command
       }
     }
 

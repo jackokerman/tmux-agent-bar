@@ -1001,6 +1001,70 @@ EOF
 run_runtime_wrapped_collection_case \
     "local collector finds runtime-wrapped agents"
 
+run_suffixed_runtime_wrapped_collection_case() {
+  local name="$1"
+
+  (
+    local tmp_dir="" actual=""
+
+    tmp_dir=$(mktemp -d)
+    mkdir -p "${tmp_dir}/bin"
+
+    cat > "${tmp_dir}/bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "list-sessions" && "${2:-}" == "-F" && "${3:-}" == '#{session_name}' ]]; then
+  printf '%s\n' "current"
+  printf '%s\n' "picked-agent"
+  exit 0
+fi
+
+if [[ "${1:-}" == "list-panes" && "${2:-}" == "-a" && "${3:-}" == "-F" ]]; then
+  printf '%s\t%s\t%s\t%s\n' "current" "%100" "100" "vim"
+  printf '%s\t%s\t%s\t%s\n' "picked-agent" "%200" "200" "bun"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/tmux"
+
+    cat > "${tmp_dir}/bin/ps" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "-eo" && "${2:-}" == "pid=,ppid=,ucomm=" ]]; then
+  printf '%s\n' "200 1 bun"
+  printf '%s\n' "201 200 codex-aarch64-ap"
+  exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "${tmp_dir}/bin/ps"
+
+    _session_live_state() {
+      printf '%s\n' "working"
+    }
+
+    actual=$(
+      PATH="${tmp_dir}/bin:${PATH}" \
+      tmux_session_status_local_emit_records "current"
+    )
+
+    assert_equal \
+      "${name}" \
+      $'picked-agent\tcodex\tworking\tlocal_fallback\t0' \
+      "${actual}"
+
+    rm -rf "${tmp_dir}"
+  )
+}
+
+run_suffixed_runtime_wrapped_collection_case \
+    "local collector finds suffixed runtime-wrapped agents"
+
 run_suffixed_direct_command_case() {
   local name="$1"
 
