@@ -14,6 +14,8 @@ Status rendering must stay bounded and predictable. Avoid polling loops, unbound
 
 When fixing a status-state bug, identify the boundary being changed first: explicit hook state, live process identity, tail fallback, observed wrapped-session memory, normalized source rows, replacement shadowing, or render-only ordering. If precedence changes, update `tests/test-state-contract.sh` and docs in the same change. Tail fallback changes need both a positive active fixture and a negative stale or connector fixture.
 
+For refresh/cache bugs, verify the whole producer-to-renderer path before patching symptoms: source refresh timeout budget, wrapper timeout budget, lock ownership and stale-lock recovery, signal interruption behavior, cache preservation on probe failure, atomic replacement of cached rows, and renderer precedence after refresh. Do not land a freshness fix that only clears current bad state; add a regression for the failed boundary, including interruption or partial-cache-swap cases when locks or staged directories are involved.
+
 If a bug only affects the active-session label or tmux refresh timing, inspect the tmux-side wrapper or `status-left`/`status-right` config that calls this repo before changing the shared runtime.
 
 When local status behavior depends on what an agent hook surface does or does not expose, verify the current official product hook docs before preserving or extending transcript inference or process-scanning fallbacks.
